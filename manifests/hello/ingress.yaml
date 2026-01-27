@@ -4,7 +4,7 @@ metadata:
   name: hello
   namespace: hello
 spec:
-  ingressClassName: traefik
+  ingressClassName: nginx
   rules:
     - host: hello.local
       http:
