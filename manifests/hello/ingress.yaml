@@ -6,13 +6,13 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: hello.local
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: hello
-                port:
-                  number: 80
+  - host: hello.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hello
+            port:
+              number: 80
