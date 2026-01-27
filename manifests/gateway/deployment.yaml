@@ -23,8 +23,7 @@ spec:
             - name: cfg
               mountPath: /etc/envoy
           readinessProbe:
-            httpGet:
-              path: /healthz
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 2
             periodSeconds: 5
