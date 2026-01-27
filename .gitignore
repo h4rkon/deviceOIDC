@@ -1,2 +1,2 @@
 .secret
-node_modules
+services/hello/node_modules
