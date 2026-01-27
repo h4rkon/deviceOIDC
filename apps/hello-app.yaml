@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: git@github.com:h4rkon/deviceOIDC.git
     targetRevision: main
-    path: apps/hello/k8s
+    path: manifests/hello
   destination:
     server: https://kubernetes.default.svc
     namespace: hello
