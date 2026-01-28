@@ -16,18 +16,52 @@ spec:
       containers:
         - name: keycloak
           image: quay.io/keycloak/keycloak:26.0.7
-          args: ["start-dev", "--http-port=8080", "--proxy-headers=xforwarded"]
+          args:
+            - start-dev
+            - --http-port=8080
+            - --proxy-headers=xforwarded
+
           env:
+            # --- existing ---
             - name: KC_HOSTNAME_STRICT
               value: "false"
             - name: KC_HTTP_ENABLED
               value: "true"
-            - name: KEYCLOAK_ADMIN
+
+            # --- bootstrap admin (dev only, OK) ---
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
               value: admin
-            - name: KEYCLOAK_ADMIN_PASSWORD
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
               value: admin
+
+            # --- database switch ---
+            - name: KC_DB
+              value: postgres
+
+            - name: KC_DB_URL_HOST
+              value: postgres.postgres.svc.cluster.local
+            - name: KC_DB_URL_PORT
+              value: "5432"
+            - name: KC_DB_URL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+
+            - name: KC_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+
           ports:
             - containerPort: 8080
+
           readinessProbe:
             tcpSocket:
               port: 8080
