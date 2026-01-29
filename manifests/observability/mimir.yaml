@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mimir-config
+  namespace: observability
+data:
+  mimir.yaml: |
+    multitenancy_enabled: false
+
+    server:
+      http_listen_port: 9009
+
+    common:
+      storage:
+        backend: filesystem
+        filesystem:
+          dir: /var/mimir
+
+    blocks_storage:
+      storage_prefix: blocks
+      tsdb:
+        dir: /var/mimir/tsdb
+
+    ingester:
+      ring:
+        kvstore:
+          store: inmemory
+        replication_factor: 1
+
+    limits:
+      compactor_blocks_retention_period: 24h
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mimir-data
+  namespace: observability
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 3Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mimir
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mimir
+  template:
+    metadata:
+      labels:
+        app: mimir
+    spec:
+      containers:
+        - name: mimir
+          image: grafana/mimir:2.13.0
+          args: ["-config.file=/etc/mimir/mimir.yaml"]
+          ports:
+            - name: http
+              containerPort: 9009
+          volumeMounts:
+            - name: cfg
+              mountPath: /etc/mimir
+            - name: data
+              mountPath: /var/mimir
+      volumes:
+        - name: cfg
+          configMap:
+            name: mimir-config
+            items:
+              - key: mimir.yaml
+                path: mimir.yaml
+        - name: data
+          persistentVolumeClaim:
+            claimName: mimir-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mimir
+  namespace: observability
+spec:
+  selector:
+    app: mimir
+  ports:
+    - name: http
+      port: 9009
+      targetPort: 9009

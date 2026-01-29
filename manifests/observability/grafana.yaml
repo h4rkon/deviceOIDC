@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: observability
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Mimir
+        type: prometheus
+        access: proxy
+        url: http://mimir.observability.svc.cluster.local:9009/prometheus
+        isDefault: true
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki.observability.svc.cluster.local:3100
+        isDefault: false
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://tempo.observability.svc.cluster.local:3200
+        isDefault: false
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-data
+  namespace: observability
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.2.0
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Admin"
+          volumeMounts:
+            - name: ds
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: data
+              mountPath: /var/lib/grafana
+      volumes:
+        - name: ds
+          configMap:
+            name: grafana-datasources
+            items:
+              - key: datasources.yaml
+                path: datasources.yaml
+        - name: data
+          persistentVolumeClaim:
+            claimName: grafana-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: observability
+spec:
+  selector:
+    app: grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
