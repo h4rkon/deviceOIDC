@@ -66,10 +66,17 @@ spec:
       labels:
         app: loki
     spec:
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: "OnRootMismatch"
       containers:
         - name: loki
           image: grafana/loki:3.1.0
           args: ["-config.file=/etc/loki/loki.yaml"]
+          securityContext:
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
           ports:
             - name: http
               containerPort: 3100
