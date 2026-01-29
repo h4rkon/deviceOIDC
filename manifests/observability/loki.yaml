@@ -35,10 +35,6 @@ data:
 
     # Demo: keep it simple. No retention → no delete store required.
     limits_config: {}
-
-    # Demo: compactor without retention enforcement.
-    compactor:
-      working_directory: /var/loki/compactor
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
