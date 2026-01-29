@@ -33,12 +33,12 @@ data:
       filesystem:
         directory: /var/loki/tsdb
 
-    limits_config:
-      retention_period: 24h
+    # Demo: keep it simple. No retention → no delete store required.
+    limits_config: {}
 
+    # Demo: compactor without retention enforcement.
     compactor:
       working_directory: /var/loki/compactor
-      retention_enabled: true
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
