@@ -50,6 +50,7 @@ So you reach everything via localhost + ports, and the `Host:` header does the h
 ### Port-forward mode (default)
 - Ingress base: `http://localhost:8081`
 - ArgoCD UI: `http://localhost:8080`
+- Keycloak UI: `http://localhost:8082`
 
 ### Host-based (used by ingress rules)
 - Keycloak UI: `http://keycloak.local/admin`
@@ -71,3 +72,13 @@ Examples (port-forward via ingress):
 ```bash
 curl -i -H "Host: hello.local" http://localhost:8081/hello
 curl -i -H "Host: keycloak.local" http://localhost:8081/
+```
+
+---
+
+## Machine demo
+```bash
+make slot
+````
+
+This calls a python client acting as machine
