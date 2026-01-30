@@ -65,12 +65,12 @@ data:
             source_labels: [__meta_kubernetes_pod_label_app]
             target_label: app
 
-          # THIS is the money line: map pod UID + container -> actual log file path
+          # read container logs directly (simplest for k3s/colima)
           - action: replace
-            source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
-            separator: /
+            source_labels: [__meta_kubernetes_pod_container_name, __meta_kubernetes_pod_name, __meta_kubernetes_namespace]
+            separator: _
             target_label: __path__
-            replacement: /var/log/pods/*$1/*.log
+            replacement: /var/log/containers/*$2*$1*.log
 
         pipeline_stages:
           - cri: {}
