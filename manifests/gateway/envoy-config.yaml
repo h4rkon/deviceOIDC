@@ -5,6 +5,12 @@ metadata:
   namespace: gateway
 data:
   envoy.yaml: |
+    admin:
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 9901
+
     static_resources:
       listeners:
       - name: listener_http
@@ -19,9 +25,43 @@ data:
               "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
               stat_prefix: ingress_http
 
-              # Keep it dev-friendly
               generate_request_id: true
               normalize_path: true
+
+              # Tracing: demo mode (100% sample)
+              tracing:
+                client_sampling: { value: 100.0 }
+                random_sampling: { value: 100.0 }
+                overall_sampling: { value: 100.0 }
+                provider:
+                  name: envoy.tracers.opentelemetry
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.tracers.opentelemetry.v3.OpenTelemetryConfig
+                    service_name: "envoy-gateway"
+                    grpc_service:
+                      envoy_grpc:
+                        cluster_name: otel_collector
+                      timeout: 2s
+
+              # JSON access logs -> stdout (promtail will scrape it)
+              access_log:
+              - name: envoy.access_loggers.stdout
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                  log_format:
+                    json_format:
+                      ts: "%START_TIME%"
+                      req_id: "%REQ(X-REQUEST-ID)%"
+                      method: "%REQ(:METHOD)%"
+                      path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+                      authority: "%REQ(:AUTHORITY)%"
+                      protocol: "%PROTOCOL%"
+                      status: "%RESPONSE_CODE%"
+                      duration_ms: "%DURATION%"
+                      upstream: "%UPSTREAM_CLUSTER%"
+                      upstream_host: "%UPSTREAM_HOST%"
+                      jwt_sub: "%REQ(x-jwt-sub)%"
+                      jwt_user: "%REQ(x-jwt-preferred-username)%"
 
               route_config:
                 name: local_route
@@ -37,45 +77,30 @@ data:
                       timeout: 15s
 
               http_filters:
-              # 1) JWT auth
               - name: envoy.filters.http.jwt_authn
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
-
                   providers:
                     keycloak:
-                      # MUST match token 'iss' exactly
                       issuer: "http://keycloak.local/realms/deviceoidc"
-
                       remote_jwks:
                         http_uri:
                           uri: "http://keycloak.keycloak.svc.cluster.local:8080/realms/deviceoidc/protocol/openid-connect/certs"
                           cluster: keycloak
                           timeout: 2s
                         cache_duration: 600s
-
-                      # Optional but useful: forward the original token to upstream
                       forward: true
-
-                      # Optional: expose claims for debugging / later authz
                       claim_to_headers:
                       - header_name: x-jwt-sub
                         claim_name: sub
-                      - header_name: x-jwt-iss
-                        claim_name: iss
                       - header_name: x-jwt-preferred-username
                         claim_name: preferred_username
-
                   rules:
-                  # allow health without JWT
                   - match: { path: "/healthz" }
-
-                  # require JWT everywhere else
                   - match: { prefix: "/" }
                     requires:
                       provider_name: keycloak
 
-              # 2) Route it
               - name: envoy.filters.http.router
                 typed_config:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -108,3 +133,18 @@ data:
                   socket_address:
                     address: keycloak.keycloak.svc.cluster.local
                     port_value: 8080
+
+      - name: otel_collector
+        type: STRICT_DNS
+        connect_timeout: 2s
+        lb_policy: ROUND_ROBIN
+        http2_protocol_options: {}
+        load_assignment:
+          cluster_name: otel_collector
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: otel-collector.observability.svc.cluster.local
+                    port_value: 4317

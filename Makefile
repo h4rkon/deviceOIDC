@@ -7,6 +7,7 @@ PIDDIR := ./.pids
 EDGE_PORT ?= 8081
 ARGO_PORT ?= 8080
 CLOAK_PORT ?= 8082
+GRFN_PORT ?= 3000
 
 KC_PASS ?= swordfish
 
@@ -63,12 +64,20 @@ pf-start: $(PIDDIR)
 	    (kubectl -n keycloak port-forward svc/keycloak $(CLOAK_PORT):8080 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-cloak.pid); \
 	    echo "   started Keycloak port-forward (pid $$(cat $(PIDDIR)/pf-cloak.pid))"; \
 	  fi'
+	@# grafana
+	@bash -c ' \
+	  if lsof -nP -iTCP:$(GRFN_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
+	    echo "   Grafana  :$(GRFN_PORT) already listening"; \
+	  else \
+	    (kubectl -n observability port-forward svc/grafana $(GRFN_PORT):3000 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-grfn.pid); \
+	    echo "   started Grafana port-forward (pid $$(cat $(PIDDIR)/pf-grfn.pid))"; \
+	  fi'
 
 .PHONY: pf-stop
 pf-stop:
 	@echo ">> Stopping port-forwards"
 	@bash -c ' \
-	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid; do \
+	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid; do \
 	    if [ -f $$f ]; then \
 	      pid=$$(cat $$f); \
 	      if kill -0 $$pid >/dev/null 2>&1; then \
@@ -85,9 +94,9 @@ pf-stop:
 .PHONY: pf-status
 pf-status:
 	@echo ">> Port-forward status"
-	@echo "   expected: ingress localhost:$(EDGE_PORT), argocd localhost:$(ARGO_PORT), Keycloak localhost:${CLOAK_PORT}"
+	@echo "   expected: ingress localhost:$(EDGE_PORT), argocd localhost:$(ARGO_PORT), Keycloak localhost:${CLOAK_PORT} Grafana localhost:${GRFN_PORT}"
 	@bash -c ' \
-	  for p in $(EDGE_PORT) $(ARGO_PORT) $(CLOAK_PORT); do \
+	  for p in $(EDGE_PORT) $(ARGO_PORT) $(CLOAK_PORT) $(GRFN_PORT); do \
 	    if lsof -nP -iTCP:$$p -sTCP:LISTEN >/dev/null 2>&1; then \
 	      echo "   port $$p: LISTENING"; \
 	    else \
@@ -95,7 +104,7 @@ pf-status:
 	    fi; \
 	  done'
 	@bash -c ' \
-	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid; do \
+	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid; do \
 	    if [ -f $$f ]; then echo "   $$(basename $$f): $$(cat $$f)"; else echo "   $$(basename $$f): <none>"; fi; \
 	  done'
 
