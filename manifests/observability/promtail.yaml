@@ -47,6 +47,7 @@ data:
       - job_name: kubernetes-pods
         kubernetes_sd_configs:
           - role: pod
+
         relabel_configs:
           - action: replace
             source_labels: [__meta_kubernetes_namespace]
@@ -63,11 +64,16 @@ data:
           - action: replace
             source_labels: [__meta_kubernetes_pod_label_app]
             target_label: app
+
+          # THIS is the money line: map pod UID + container -> actual log file path
           - action: replace
             source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
             separator: /
             target_label: __path__
             replacement: /var/log/pods/*$1/*.log
+
+        pipeline_stages:
+          - cri: {}
 ---
 apiVersion: apps/v1
 kind: DaemonSet
