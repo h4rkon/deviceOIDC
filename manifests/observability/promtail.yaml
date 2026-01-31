@@ -73,6 +73,8 @@ data:
           - action: replace
             source_labels: [__meta_kubernetes_pod_label_app]
             target_label: app
+          - action: labeldrop
+            regex: filename
 
           # 👇 money shot: docker://<id> -> /var/lib/docker/containers/<id>/<id>-json.log
           - action: replace
