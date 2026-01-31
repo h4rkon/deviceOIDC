@@ -24,11 +24,9 @@ data:
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
               stat_prefix: ingress_http
-
               generate_request_id: true
               normalize_path: true
 
-              # Tracing: demo mode (100% sample)
               tracing:
                 client_sampling: { value: 100.0 }
                 random_sampling: { value: 100.0 }
@@ -43,7 +41,6 @@ data:
                         cluster_name: otel_collector
                       timeout: 2s
 
-              # JSON access logs -> stdout (promtail will scrape it)
               access_log:
               - name: envoy.access_loggers.stdout
                 typed_config:
@@ -55,13 +52,8 @@ data:
                       method: "%REQ(:METHOD)%"
                       path: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
                       authority: "%REQ(:AUTHORITY)%"
-                      protocol: "%PROTOCOL%"
                       status: "%RESPONSE_CODE%"
-                      duration_ms: "%DURATION%"
                       upstream: "%UPSTREAM_CLUSTER%"
-                      upstream_host: "%UPSTREAM_HOST%"
-                      jwt_sub: "%REQ(x-jwt-sub)%"
-                      jwt_user: "%REQ(x-jwt-preferred-username)%"
 
               route_config:
                 name: local_route
@@ -74,6 +66,14 @@ data:
                   - match: { prefix: "/" }
                     route:
                       cluster: hello_upstream
+                      timeout: 15s
+
+                - name: keycloak_vhost
+                  domains: ["keycloak.local", "keycloak.local:*"]
+                  routes:
+                  - match: { prefix: "/" }
+                    route:
+                      cluster: keycloak
                       timeout: 15s
 
               http_filters:
@@ -90,14 +90,24 @@ data:
                           timeout: 2s
                         cache_duration: 600s
                       forward: true
-                      claim_to_headers:
-                      - header_name: x-jwt-sub
-                        claim_name: sub
-                      - header_name: x-jwt-preferred-username
-                        claim_name: preferred_username
                   rules:
                   - match: { path: "/healthz" }
-                  - match: { prefix: "/" }
+
+                  # allow keycloak without JWT
+                  - match:
+                      prefix: "/"
+                      headers:
+                      - name: ":authority"
+                        string_match:
+                          exact: "keycloak.local"
+
+                  # require JWT only for hello
+                  - match:
+                      prefix: "/"
+                      headers:
+                      - name: ":authority"
+                        string_match:
+                          exact: "hello.local"
                     requires:
                       provider_name: keycloak
 
