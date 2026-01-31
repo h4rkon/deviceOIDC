@@ -149,7 +149,9 @@ spec:
               - key: promtail.yaml
                 path: promtail.yaml
         - name: positions
-          emptyDir: {}
+          hostPath:
+            path: /var/lib/promtail
+            type: DirectoryOrCreate
         - name: varlogpods
           hostPath:
             path: /var/log/pods
