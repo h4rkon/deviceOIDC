@@ -58,6 +58,7 @@ data:
               route_config:
                 name: local_route
                 virtual_hosts:
+                
                 - name: hello_vhost
                   domains: ["hello.local", "hello.local:*"]
                   routes:

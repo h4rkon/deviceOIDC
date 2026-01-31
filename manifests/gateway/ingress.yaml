@@ -16,3 +16,13 @@ spec:
                 name: envoy
                 port:
                   number: 80
+    - host: keycloak.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: envoy
+                port:
+                  number: 80
