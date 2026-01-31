@@ -75,8 +75,13 @@ data:
             target_label: app
 
           - action: replace
+            source_labels:
+              - __meta_kubernetes_pod_name
+              - __meta_kubernetes_namespace
+              - __meta_kubernetes_pod_container_name
+            separator: _
             target_label: __path__
-            replacement: /var/log/containers/*.log
+            replacement: /var/log/containers/$1_$2_$3-*.log
 
         pipeline_stages:
           - cri: {}
