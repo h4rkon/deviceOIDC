@@ -39,7 +39,7 @@ $(PIDDIR):
 
 .PHONY: pf-start
 pf-start: $(PIDDIR)
-	@echo ">> Starting port-forwards (ingress-nginx -> :$(EDGE_PORT), argocd -> :$(ARGO_PORT), Keycloak -> :$(CLOAK_PORT))"
+	@echo ">> Starting port-forwards (ingress-nginx -> :$(EDGE_PORT), argocd -> :$(ARGO_PORT), Keycloak -> :$(CLOAK_PORT), Grafana -> :$(GRFN_PORT))"
 	@# ingress-nginx
 	@bash -c ' \
 	  if lsof -nP -iTCP:$(EDGE_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \

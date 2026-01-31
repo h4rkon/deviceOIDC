@@ -74,14 +74,12 @@ data:
             source_labels: [__meta_kubernetes_pod_label_app]
             target_label: app
 
+          # 👇 money shot: docker://<id> -> /var/lib/docker/containers/<id>/<id>-json.log
           - action: replace
-            source_labels:
-              - __meta_kubernetes_pod_name
-              - __meta_kubernetes_namespace
-              - __meta_kubernetes_pod_container_name
-            separator: _
+            source_labels: [__meta_kubernetes_pod_container_id]
+            regex: 'docker://([0-9a-f]+)'
             target_label: __path__
-            replacement: /var/log/pods/$2_$1_*/$3/*.log
+            replacement: /var/lib/docker/containers/$1/$1-json.log
 
         pipeline_stages:
           - cri: {}
