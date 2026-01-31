@@ -27,19 +27,19 @@ data:
               generate_request_id: true
               normalize_path: true
 
-              tracing:
-                client_sampling: { value: 100.0 }
-                random_sampling: { value: 100.0 }
-                overall_sampling: { value: 100.0 }
-                provider:
-                  name: envoy.tracers.opentelemetry
-                  typed_config:
-                    "@type": type.googleapis.com/envoy.extensions.tracers.opentelemetry.v3.OpenTelemetryConfig
-                    service_name: "envoy-gateway"
-                    grpc_service:
-                      envoy_grpc:
-                        cluster_name: otel_collector
-                      timeout: 2s
+              # tracing:
+              #   client_sampling: { value: 100.0 }
+              #   random_sampling: { value: 100.0 }
+              #   overall_sampling: { value: 100.0 }
+              #   provider:
+              #     name: envoy.tracers.opentelemetry
+              #     typed_config:
+              #       "@type": type.googleapis.com/envoy.extensions.tracers.opentelemetry.v3.OpenTelemetryConfig
+              #       service_name: "envoy-gateway"
+              #       grpc_service:
+              #         envoy_grpc:
+              #           cluster_name: otel_collector
+              #         timeout: 2s
 
               access_log:
               - name: envoy.access_loggers.stdout
@@ -58,7 +58,7 @@ data:
               route_config:
                 name: local_route
                 virtual_hosts:
-                
+
                 - name: hello_vhost
                   domains: ["hello.local", "hello.local:*"]
                   routes:
