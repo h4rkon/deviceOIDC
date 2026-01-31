@@ -81,7 +81,7 @@ data:
               - __meta_kubernetes_pod_container_name
             separator: _
             target_label: __path__
-            replacement: /var/log/pods/*$1*/$2/*.log
+            replacement: /var/log/pods/$2_$1_*/$3/*.log
 
         pipeline_stages:
           - cri: {}
