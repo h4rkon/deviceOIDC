@@ -74,15 +74,9 @@ data:
             source_labels: [__meta_kubernetes_pod_label_app]
             target_label: app
 
-          # read container logs directly (simplest for k3s/colima)
           - action: replace
-            source_labels:
-              - __meta_kubernetes_pod_name
-              - __meta_kubernetes_namespace
-              - __meta_kubernetes_pod_container_name
-            separator: _
             target_label: __path__
-            replacement: /var/log/containers/*$1*.log
+            replacement: /var/log/containers/*.log
 
         pipeline_stages:
           - cri: {}
@@ -123,7 +117,7 @@ spec:
           # (optional but often helps with hostPath weirdness)
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: false
 
           volumeMounts:
             - name: cfg
