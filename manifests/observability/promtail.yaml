@@ -49,6 +49,15 @@ data:
           - role: pod
 
         relabel_configs:
+          # keep only pods running on this node (DaemonSet reads local files)
+          - action: keep
+            source_labels: [__meta_kubernetes_pod_node_name]
+            regex: ${HOSTNAME}
+
+          # optional but common: store node name in __host__
+          - action: replace
+            source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: __host__
           - action: replace
             source_labels: [__meta_kubernetes_namespace]
             target_label: namespace
@@ -102,7 +111,14 @@ spec:
       containers:
         - name: promtail
           image: grafana/promtail:3.1.0
-          args: ["-config.file=/etc/promtail/promtail.yaml"]
+          args:
+            - "-config.file=/etc/promtail/promtail.yaml"
+            - "-config.expand-env=true"
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
 
           # (optional but often helps with hostPath weirdness)
           securityContext:
