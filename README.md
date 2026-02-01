@@ -152,7 +152,13 @@ Routing is done via the `Host` header.
 
 ### Keycloak UI
 
-[http://keycloak.local/admin](http://keycloak.local/admin)
+Not going through envoy gateway:
+flowchart TD
+  A[Client] --> B[Envoy]
+  B -->|401| C[Keycloak]
+  B -->|200| D[hello-service]
+
+[http://keycloak.local/admin](http://keycloak.local:8082/admin)
 
 ### OIDC endpoints
 
