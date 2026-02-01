@@ -129,18 +129,102 @@ Host-based routing everywhere:
 
 * `hello.local`
 * `keycloak.local`
-* (optionally) `argocd.local`
+
+Default access mode: port-forward to the ingress controller (avoids Colima/macOS networking weirdness).
 
 ### Default access mode: port-forward
 
-This avoids macOS / Colima networking issues.
+This avoids macOS / Colima networking issues - achieved with
+
+```bash
+make pf-status # gives the status of port forwarding
+make pf-start  # starts port forwarding for ingress, argocd, grafana, and keycloak
+make pf-stop   # stops port forwarding
+```
 
 | Component | URL                                            |
 | --------- | ---------------------------------------------- |
-| Ingress   | [http://localhost:8081](http://localhost:8081) |
-| ArgoCD    | [http://localhost:8080](http://localhost:8080) |
+| ArgoCD    | [http://argoargocd.local:8080](http://argocd.local:8080) |
+| Keycloak  | [http://keycloak.local:8082/admin](http://keycloak.local:8082/admin) |
+| Grafana   | [http://grafana.local:3000](http://grafana.local:3000) |
 
-Routing is done via the `Host` header.
+In /etc/hosts, the *.local hostnames are pointing to loopback 127.0.0.1. Routing to backends is done via the Host header.
+
+### Keycloak Access Model (UI vs OIDC)
+
+Keycloak serves two very different consumers:
+- Humans (browser / admin UI): use direct port-forward to Keycloak service [http://keycloak.local:8082/admin](http://keycloak.local:8082/admin)
+- Machines (slot machine / scripts): go through Envoy (policy + JWT + observability)
+
+```mermaid
+flowchart LR
+  %% =========================
+  %% External (your laptop)
+  %% =========================
+  subgraph LAPTOP["Laptop (macOS)"]
+    B["Browser (Human)"]
+    S["Slotmachine client (Python)"]
+    PF_I["make pf-start<br/>port-forward ingress-nginx<br/>localhost:8081 → svc/ingress-nginx:80"]
+    PF_K["(optional) port-forward Keycloak<br/>localhost:8082 → svc/keycloak:8080"]
+  end
+
+  %% =========================
+  %% Kubernetes cluster
+  %% =========================
+  subgraph K8S["k3s on Colima (Kubernetes)"]
+    N["ingress-nginx controller"]
+    ING["Ingress (gateway/hello)<br/>hosts: hello.local, keycloak.local<br/>backend: svc/envoy:80"]
+    E["Envoy (gateway)<br/>host-based routing + JWT filter"]
+    H["Hello service (hello)"]
+    KC["Keycloak (keycloak)<br/>OIDC + Admin Console"]
+  end
+
+  %% --- Browser path (Admin UI) ---
+  B -->|open http://localhost:8082/admin| PF_K --> KC
+  KC -->|302 /admin → /admin/master/console| B
+
+  %% --- Machine path (OIDC via Envoy) ---
+  S -->|HTTP to localhost:8081<br/>Host: keycloak.local| PF_I --> N --> ING --> E --> KC
+  KC -->|OIDC endpoints<br/>/realms/.../token, /certs, /.well-known| S
+
+  %% --- Regular app traffic through Envoy ---
+  S -->|HTTP to localhost:8081<br/>Host: hello.local<br/>Authorization: Bearer <token>| PF_I --> N --> ING --> E --> H
+
+  %% Labels to make intent obvious
+  classDef human fill:#f7f7f7,stroke:#333,stroke-width:1px;
+  classDef machine fill:#eef7ff,stroke:#333,stroke-width:1px;
+  class B,PF_K human;
+  class S,PF_I machine;
+```
+
+**Admin UI (browser):**
+- You use keycloak.local:8082 (direct port-forward to Keycloak)
+- No Envoy, no NGINX host routing, no “why is my console redirecting to Narnia?”
+
+**OIDC token minting (slotmachine / scripts):**
+- You call keycloak.local:8081 (port-forward to ingress-nginx)
+- You set Host: keycloak.local
+- NGINX routes to Envoy
+- Envoy routes to Keycloak
+- You get tokens + JWKS like a grown-up service would
+
+#### Keycloak UI
+
+**Admin Console (human access)**
+Requires Keycloak port-forward enabled.
+- Start:
+  - pf-start if you want it automated
+- Open:
+  - [http://keycloak.local:8082/admin](http://keycloak.local:8082/admin)
+
+**OIDC endpoints (machine access via Envoy)**
+These are reached through the edge port-forward (localhost:8081) + Host header:
+- Issuer:
+  - curl -H 'Host: keycloak.local' http://keycloak.local:8081/realms/deviceoidc
+- Token:
+  - curl -H 'Host: keycloak.local' http://keycloak.local:8081/realms/deviceoidc/protocol/openid-connect/token
+- JWKS:
+  - curl -H 'Host: keycloak.local' http://keycloak:8081/realms/deviceoidc/protocol/openid-connect/certs
 
 ---
 
@@ -152,13 +236,10 @@ Routing is done via the `Host` header.
 
 ### Keycloak UI
 
-Not going through envoy gateway:
+Not going through envoy gateway - would be nice to have some description about keycloak in general
 
 ```mermaid
-flowchart TD
-  A[Client] --> B[Envoy]
-  B -->|401| C[Keycloak]
-  B -->|200| D[hello-service]
+//here goes the mermaid code
 ```
 
 [http://keycloak.local/admin](http://keycloak.local:8082/admin)
