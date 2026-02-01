@@ -2,6 +2,7 @@
 import os
 import time
 import re
+import json
 import requests
 from typing import List, Tuple, Optional
 from datetime import datetime
@@ -21,22 +22,25 @@ DS_LOKI = int(os.getenv("DS_LOKI_ID", "2"))
 
 REFRESH = float(os.getenv("REFRESH", "2.0"))
 
-# Default: workload feed, exclude platform noise
+# ✅ TUI default query (NO line_format; we parse JSON locally)
+# Shows "meaningful stuff": token mint + hello call via envoy structured logs
 LOKI_QUERY = os.getenv(
     "LOKI_QUERY",
-    '{namespace=~".+", namespace!~"observability|argocd|kube-system|postgres"}'
+    '{app="envoy", namespace=~".+", namespace!~"observability|argocd|kube-system"}'
+    ' | json | method="POST" | upstream=~"keycloak|hello_upstream"'
 )
 
-# Fallback if query fails (still shows something)
+# Fallback if query fails
 LOKI_FALLBACK_QUERY = os.getenv("LOKI_FALLBACK_QUERY", '{app=~".+"}')
 
 LOKI_LIMIT = int(os.getenv("LOKI_LIMIT", "80"))
-LOKI_WINDOW_SEC = int(os.getenv("LOKI_WINDOW_SEC", "600"))
+LOKI_WINDOW_SEC = int(os.getenv("LOKI_WINDOW_SEC", "900"))
 
 # Visual tuning
-MAX_MSG_LEN = int(os.getenv("MAX_MSG_LEN", "140"))   # for raw/unknown lines
-MAX_PATH_LEN = int(os.getenv("MAX_PATH_LEN", "52"))  # keep tables tight
-MAX_UPSTREAM_LEN = int(os.getenv("MAX_UPSTREAM_LEN", "26"))
+MAX_PATH_LEN = int(os.getenv("MAX_PATH_LEN", "60"))
+MAX_UPSTREAM_LEN = int(os.getenv("MAX_UPSTREAM_LEN", "18"))
+MAX_POD_LEN = int(os.getenv("MAX_POD_LEN", "24"))
+MAX_MSG_LEN = int(os.getenv("MAX_MSG_LEN", "120"))
 
 console = Console()
 
@@ -112,12 +116,12 @@ def loki_tail(query: str, limit: int, window_sec: int) -> List[dict]:
 # -----------------------------------------------------------------------------
 # Rendering helpers
 # -----------------------------------------------------------------------------
-def fmt_ts(ns: int) -> str:
-    return datetime.fromtimestamp(ns / 1e9).strftime("%H:%M:%S.%f")[:-3]
-
 def truncate(s: str, n: int) -> str:
     s = s.replace("\n", "\\n")
     return s if len(s) <= n else s[: n - 1] + "…"
+
+def fmt_ts(ns: int) -> str:
+    return datetime.fromtimestamp(ns / 1e9).strftime("%H:%M:%S.%f")[:-3]
 
 def pick_label(labels: dict, *keys: str, default: str = "-") -> str:
     for k in keys:
@@ -127,11 +131,41 @@ def pick_label(labels: dict, *keys: str, default: str = "-") -> str:
     return default
 
 # -----------------------------------------------------------------------------
-# Access log compaction
-# We target lines like:
-# 127.0.0.1 - - [31/Jan/2026:14:09:06 +0000] "HEAD /hello HTTP/1.1" 401 0 "-" "curl/8.7.1" 80 0.002  [] 10.42.0.37:8080 0 0.002 401 <reqid>
-#
-# We parse method, path, status, upstream, duration (best-effort).
+# 1) Parse Envoy structured JSON logs
+# -----------------------------------------------------------------------------
+def parse_envoy_json(line: str) -> Optional[dict]:
+    line = line.strip()
+    if not (line.startswith("{") and line.endswith("}")):
+        return None
+    try:
+        obj = json.loads(line)
+    except Exception:
+        return None
+
+    # We only treat it as envoy access JSON if it looks like one
+    needed = {"authority", "method", "path", "status", "upstream"}
+    if not needed.issubset(obj.keys()):
+        return None
+
+    # Normalize / safe casts
+    status = obj.get("status")
+    try:
+        status = int(status)
+    except Exception:
+        status = status
+
+    return {
+        "authority": str(obj.get("authority", "-")),
+        "method": str(obj.get("method", "-")),
+        "path": str(obj.get("path", "-")),
+        "status": status,
+        "upstream": str(obj.get("upstream", "-")),
+        "req_id": str(obj.get("req_id", obj.get("request_id", "-"))),
+        "ts": str(obj.get("ts", "-")),
+    }
+
+# -----------------------------------------------------------------------------
+# 2) Parse nginx-ish access log lines (your other envoy format)
 # -----------------------------------------------------------------------------
 ACCESS_RE = re.compile(r'"(?P<method>[A-Z]+)\s+(?P<path>\S+)\s+HTTP/[^"]+"\s+(?P<status>\d{3})\s')
 
@@ -142,27 +176,27 @@ def parse_access_line(line: str) -> Optional[dict]:
 
     method = m.group("method")
     path = m.group("path")
-    status = m.group("status")
+    status = int(m.group("status"))
 
-    # After the second quoted part, remaining tokens usually contain upstream + durations.
-    # We’ll do a best-effort parse by splitting on quotes and then tokenizing the tail.
-    parts = line.split('"')
-    tail = parts[-1].strip() if parts else ""
-    tokens = tail.split()
+    # heuristic for req_id: last token often 32-hex
+    tokens = line.strip().split()
+    req_id = "-"
+    if tokens:
+        last = tokens[-1]
+        if re.fullmatch(r"[0-9a-f]{32}", last):
+            req_id = last
 
+    # heuristic for upstream: first token that looks like IP:port
     upstream = "-"
-    dur = "-"
-
-    # Heuristic: find first token that looks like IP:port (upstream)
     for tok in tokens:
         if ":" in tok and tok.count(".") >= 1 and tok.split(":")[-1].isdigit():
             upstream = tok
             break
 
-    # Heuristic: find first token that looks like duration seconds (e.g. 0.002)
+    # heuristic duration: first token that looks like 0.002
+    dur = "-"
     for tok in tokens:
         if tok.count(".") == 1 and tok.replace(".", "").isdigit():
-            # keep the first plausible duration
             dur = tok
             break
 
@@ -172,25 +206,32 @@ def parse_access_line(line: str) -> Optional[dict]:
         "status": status,
         "upstream": upstream,
         "dur": dur,
+        "req_id": req_id,
     }
 
+# -----------------------------------------------------------------------------
+# Render table
+# -----------------------------------------------------------------------------
 def render_loki_table(active_query: str, streams: List[dict], limit: int) -> Table:
     t = Table(title=f"Loki | {active_query}", show_lines=False)
-    t.add_column("time", width=12)
-    t.add_column("ns", width=14, overflow="fold")
-    t.add_column("app", width=10, overflow="fold")
-    t.add_column("pod", width=22, overflow="fold")
-    t.add_column("kind", width=6)
 
+    t.add_column("time", width=12)
+    t.add_column("ns", width=12, overflow="fold")
+    t.add_column("app", width=8, overflow="fold")
+    t.add_column("pod", width=MAX_POD_LEN, overflow="fold")
+
+    # Structured request columns
+    t.add_column("st", width=3, justify="right")
+    t.add_column("auth", width=16, overflow="fold")
     t.add_column("m", width=4)
     t.add_column("path", width=MAX_PATH_LEN, overflow="fold")
-    t.add_column("st", width=3, justify="right")
-    t.add_column("upstream", width=MAX_UPSTREAM_LEN, overflow="fold")
-    t.add_column("dur", width=7, justify="right")
+    t.add_column("up", width=MAX_UPSTREAM_LEN, overflow="fold")
+    t.add_column("req_id", width=12, overflow="fold")
+
+    # Fallback msg
     t.add_column("msg", overflow="fold")
 
-    rows: List[Tuple[int, dict, str]] = []  # (ts_ns, labels, line)
-
+    rows: List[Tuple[int, dict, str]] = []
     for s in streams:
         labels = s.get("stream", {}) or {}
         for ts_ns, line in s.get("values", []):
@@ -199,44 +240,63 @@ def render_loki_table(active_query: str, streams: List[dict], limit: int) -> Tab
     rows.sort(key=lambda x: x[0], reverse=True)
 
     if not rows:
-        t.add_row("-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "(no logs in window)")
+        t.add_row("-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "(no logs in window)")
         return t
 
     for ts_ns, labels, line in rows[:limit]:
         ns = pick_label(labels, "namespace")
         app = pick_label(labels, "app", "service_name", "container")
-        pod = pick_label(labels, "pod")
+        pod = truncate(pick_label(labels, "pod"), MAX_POD_LEN)
 
-        parsed = parse_access_line(line)
-        if parsed:
-            kind = "http"
-            method = parsed["method"]
-            path = truncate(parsed["path"], MAX_PATH_LEN)
-            status = parsed["status"]
-            upstream = truncate(parsed["upstream"], MAX_UPSTREAM_LEN)
-            dur = parsed["dur"]
-            msg = ""  # keep compact
-        else:
-            kind = "log"
-            method = "-"
-            path = "-"
-            status = "-"
-            upstream = "-"
-            dur = "-"
-            msg = truncate(line.rstrip(), MAX_MSG_LEN)
+        # Prefer envoy JSON access logs (best structured)
+        ej = parse_envoy_json(line)
+        if ej:
+            t.add_row(
+                fmt_ts(ts_ns),
+                ns,
+                app,
+                pod,
+                str(ej["status"]),
+                truncate(ej["authority"], 16),
+                ej["method"],
+                truncate(ej["path"], MAX_PATH_LEN),
+                truncate(ej["upstream"], MAX_UPSTREAM_LEN),
+                truncate(ej["req_id"], 12),
+                "",  # msg empty, we have structure
+            )
+            continue
 
+        # Next: nginx-ish access log
+        al = parse_access_line(line)
+        if al:
+            t.add_row(
+                fmt_ts(ts_ns),
+                ns,
+                app,
+                pod,
+                str(al["status"]),
+                "-",  # authority unknown in this format
+                al["method"],
+                truncate(al["path"], MAX_PATH_LEN),
+                truncate(al["upstream"], MAX_UPSTREAM_LEN),
+                truncate(al["req_id"], 12),
+                f"dur={al['dur']}",
+            )
+            continue
+
+        # Raw fallback
         t.add_row(
             fmt_ts(ts_ns),
             ns,
             app,
             pod,
-            kind,
-            method,
-            path,
-            status,
-            upstream,
-            dur,
-            msg,
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
+            truncate(line.rstrip(), MAX_MSG_LEN),
         )
 
     return t
@@ -265,7 +325,7 @@ def main():
             header.append("tui.py ", style="bold")
             header.append(
                 f"refresh={REFRESH}s  window={LOKI_WINDOW_SEC}s  limit={LOKI_LIMIT}  ",
-                style="dim"
+                style="dim",
             )
             header.append("| ")
 
