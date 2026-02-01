@@ -236,12 +236,6 @@ These are reached through the edge port-forward (localhost:8081) + Host header:
 
 ### Keycloak UI
 
-Not going through envoy gateway - would be nice to have some description about keycloak in general
-
-```mermaid
-//here goes the mermaid code
-```
-
 [http://keycloak.local/admin](http://keycloak.local:8082/admin)
 
 ### OIDC endpoints
