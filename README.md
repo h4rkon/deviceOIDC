@@ -153,10 +153,13 @@ Routing is done via the `Host` header.
 ### Keycloak UI
 
 Not going through envoy gateway:
+
+```mermaid
 flowchart TD
   A[Client] --> B[Envoy]
   B -->|401| C[Keycloak]
   B -->|200| D[hello-service]
+```
 
 [http://keycloak.local/admin](http://keycloak.local:8082/admin)
 
