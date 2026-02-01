@@ -22,6 +22,10 @@ spec:
             - --proxy-headers=xforwarded
 
           env:
+            - name: KC_HOSTNAME_URL
+              value: "http://keycloak.local:8081"
+            - name: KC_HOSTNAME_ADMIN_URL
+              value: "http://keycloak.local:8081"
             # --- existing ---
             - name: KC_HOSTNAME_STRICT
               value: "false"
