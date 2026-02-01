@@ -24,7 +24,7 @@ REFRESH = float(os.getenv("REFRESH", "2.0"))
 # Default: workload feed, exclude platform noise
 LOKI_QUERY = os.getenv(
     "LOKI_QUERY",
-    '{namespace=~".+", namespace!~"observability|argocd|kube-system"}'
+    '{namespace=~".+", namespace!~"observability|argocd|kube-system|postgres"}'
 )
 
 # Fallback if query fails (still shows something)

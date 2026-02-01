@@ -11,6 +11,10 @@ GRFN_PORT ?= 3000
 
 KC_PASS ?= swordfish
 
+VENV := .python
+PYTHON := python3
+PIP := $(VENV)/bin/pip
+
 .PHONY: help
 help:
 	@echo ""
@@ -116,3 +120,23 @@ argocd-pass:
 .PHONY: slot
 slot:
 	@KC_PASS=$(KC_PASS) python3 client/machine.py
+
+.PHONY: init
+init:
+	@if [ ! -d "$(VENV)" ]; then \
+		echo ">> Creating virtualenv in $(VENV)"; \
+		$(PYTHON) -m venv $(VENV); \
+	else \
+		echo ">> Virtualenv already exists"; \
+	fi
+	@echo ">> Installing requirements"
+	@$(PIP) install -r requirements.txt
+
+.PHONY: shell
+shell:
+	@echo ">> Run:"
+	@echo "   source $(VENV)/bin/activate"
+
+.PHONY: clean
+clean:
+	rm -rf $(VENV)

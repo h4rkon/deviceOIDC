@@ -165,7 +165,7 @@ flowchart LR
     B["Browser (Human)"]
     S["Slotmachine client (Python)"]
     PF_I["make pf-start<br/>port-forward ingress-nginx<br/>localhost:8081 → svc/ingress-nginx:80"]
-    PF_K["(optional) port-forward Keycloak<br/>localhost:8082 → svc/keycloak:8080"]
+    PF_K["(optional) port-forward Keycloak<br/>keycloak.local:8082 → svc/keycloak:8080"]
   end
 
   %% =========================
@@ -180,7 +180,7 @@ flowchart LR
   end
 
   %% --- Browser path (Admin UI) ---
-  B -->|open http://localhost:8082/admin| PF_K --> KC
+  B -->|open http://keycloak.local:8082/admin| PF_K --> KC
   KC -->|302 /admin → /admin/master/console| B
 
   %% --- Machine path (OIDC via Envoy) ---
@@ -218,7 +218,7 @@ Requires Keycloak port-forward enabled.
   - [http://keycloak.local:8082/admin](http://keycloak.local:8082/admin)
 
 **OIDC endpoints (machine access via Envoy)**
-These are reached through the edge port-forward (localhost:8081) + Host header:
+These are reached through the edge port-forward (keycloak.local:8081) + Host header:
 - Issuer:
   - curl -H 'Host: keycloak.local' http://keycloak.local:8081/realms/deviceoidc
 - Token:
@@ -255,7 +255,7 @@ These are reached through the edge port-forward (localhost:8081) + Host header:
 
 Hello without token (blocked):
 
-curl -i -H "Host: hello.local" [http://localhost:8081/hello](http://localhost:8081/hello)
+curl -i -H "Host: hello.local" [http://hello.local:8081/hello](http://hello.local:8081/hello)
 → 401
 
 Hello with token (allowed):
@@ -263,7 +263,7 @@ Hello with token (allowed):
 curl -i 
 -H "Host: hello.local" 
 -H "Authorization: Bearer <token>" 
-[http://localhost:8081/hello](http://localhost:8081/hello)
+[http://hello.local:8081/hello](http://hello.local:8081/hello)
 → 200
 
 ---
@@ -340,4 +340,18 @@ What exists is:
 * observable
 * explainable
 
+# Dummy machine clients
+
+Realized through python script under ./client/machine.py
+
+Use and setup of python:
+
+```bash
+make init
+make shell
+deactive
+make clean
+``` 
+
 Everything else will be added step by step.
+
