@@ -266,6 +266,47 @@ curl -i
 [http://hello.local:8081/hello](http://hello.local:8081/hello)
 → 200
 
+```mermaid
+flowchart LR
+    subgraph Local_Machine["Developer Machine"]
+        Browser["Browser"]
+        Slot["Slot Machine (Python)"]
+    end
+
+    subgraph PortForward["kubectl port-forward"]
+        PF_Keycloak["Keycloak Admin UI :8082"]
+    end
+
+    subgraph Ingress["NGINX Ingress"]
+        NGINX["ingress-nginx"]
+    end
+
+    subgraph Gateway["Gateway Namespace"]
+        Envoy["Envoy API Gateway"]
+    end
+
+    subgraph Identity["Keycloak Namespace"]
+        KC["Keycloak"]
+    end
+
+    subgraph Services["Services"]
+        Hello["Hello Service"]
+    end
+
+    %% Admin access (out-of-band)
+    Browser -->|http://keycloak.local:8082/admin| PF_Keycloak
+    PF_Keycloak --> KC
+
+    %% Machine flow
+    Slot -->|POST /token\nHost: keycloak.local| NGINX
+    NGINX --> Envoy
+    Envoy --> KC
+
+    Slot -->|POST /hello\nHost: hello.local\nBearer token| NGINX
+    NGINX --> Envoy
+    Envoy --> Hello
+```
+
 ---
 
 ## Doctor script (mandatory)
