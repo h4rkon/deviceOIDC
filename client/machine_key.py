@@ -243,16 +243,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Seconds between hello calls (default: 2.0).",
     )
     parser.add_argument(
-        "--max-calls-per-token",
-        type=int,
-        default=30,
-        help="Refresh token after this many hello calls (default: 30).",
-    )
-    parser.add_argument(
         "--token-max-age",
         type=int,
         default=60,
-        help="Refresh token after this many seconds (default: 60).",
+        help="client_assertion lifetime in seconds (default: 60).",
     )
     parser.add_argument(
         "--debug",
@@ -334,7 +328,6 @@ def main(argv: list[str] | None = None) -> int:
     machine_id = args.machine_id
     bet = args.bet
     interval = args.interval
-    max_calls_per_token = args.max_calls_per_token
     token_max_age = args.token_max_age
 
     token_url = f"{ingress_base}/realms/{realm}/protocol/openid-connect/token"
@@ -347,23 +340,14 @@ def main(argv: list[str] | None = None) -> int:
     log(f"Client ID: {client_id}")
 
     access_token: str | None = None
-    token_exp = 0
-    token_calls = 0
 
     log("Calling protected API via Envoy (loop)")
 
     try:
         while True:
-            now = int(time.time())
-            needs_refresh = (
-                access_token is None
-                or token_calls >= max_calls_per_token
-                or now >= token_exp - 5
-            )
-
-            if needs_refresh:
+            if access_token is None:
                 try:
-                    access_token, token_exp = fetch_access_token(
+                    access_token, _token_exp = fetch_access_token(
                         token_url=token_url,
                         token_aud=token_aud,
                         client_id=client_id,
@@ -371,7 +355,6 @@ def main(argv: list[str] | None = None) -> int:
                         kid=kid,
                         token_max_age=token_max_age,
                     )
-                    token_calls = 0
                     log("Access token received", LogLevel.SUCCESS)
                 except (HTTPError, URLError, RuntimeError) as e:
                     log(f"Token request failed: {e}", LogLevel.ERROR)
@@ -410,7 +393,6 @@ def main(argv: list[str] | None = None) -> int:
                 time.sleep(interval)
                 continue
 
-            token_calls += 1
             time.sleep(interval)
     except KeyboardInterrupt:
         log("Stopped by user")
