@@ -404,6 +404,23 @@ Minimal client calls (defaults cover most settings):
 ./client/machine_key.py --private-key slot-machine.private.pem
 ```
 
+Generate a client_assertion for curl:
+
+```bash
+CLIENT_ASSERTION="$(./client/client_assertion.py --private-key slot-machine.private.pem)"
+```
+
+Use with curl (client_credentials + private_key_jwt):
+
+```bash
+curl -s -H 'Host: keycloak.local' \
+  -d 'grant_type=client_credentials' \
+  -d 'client_id=slot-machine' \
+  -d 'client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer' \
+  -d "client_assertion=${CLIENT_ASSERTION}" \
+  http://keycloak.local:8081/realms/deviceoidc/protocol/openid-connect/token
+```
+
 Optional overrides if needed:
 
 ```bash

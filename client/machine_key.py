@@ -33,18 +33,37 @@ import urllib.parse
 import urllib.request
 from urllib.error import HTTPError, URLError
 import argparse
+from enum import Enum
+import datetime
 
 
 DEBUG = False
 
 
-def log(msg: str):
-    print(f"[slot] {msg}")
+class LogLevel(Enum):
+    DEBUG = "debug"
+    INFO = "info"
+    SUCCESS = "success"
+    ERROR = "error"
+
+
+_COLOR = {
+    LogLevel.DEBUG: "\033[90m",   # light grey
+    LogLevel.INFO: "\033[37m",    # white
+    LogLevel.SUCCESS: "\033[32m", # green
+    LogLevel.ERROR: "\033[31m",   # red
+}
+_RESET = "\033[0m"
+
+
+def log(msg: str, level: LogLevel = LogLevel.INFO):
+    color = _COLOR.get(level, _RESET)
+    print(f"{color}[slot] {msg}{_RESET}")
 
 
 def debug(msg: str):
     if DEBUG:
-        print(f"[debug] {msg}")
+        log(msg, LogLevel.DEBUG)
 
 
 def b64url(data: bytes) -> str:
@@ -291,9 +310,12 @@ def fetch_access_token(
         if not exp:
             exp = now + token_max_age
 
-    debug("Decoded JWT claims:")
     claims = decode_jwt_payload(access_token)
+    debug("Decoded JWT claims:")
     debug(json.dumps({k: claims.get(k) for k in ("iss", "aud", "azp", "sub", "exp")}, indent=2))
+    if isinstance(claims.get("exp"), int):
+        exp_utc = datetime.datetime.utcfromtimestamp(claims["exp"]).isoformat() + "Z"
+        log(f"Access token exp (UTC): {exp_utc}")
 
     return access_token, exp
 
@@ -350,9 +372,9 @@ def main(argv: list[str] | None = None) -> int:
                         token_max_age=token_max_age,
                     )
                     token_calls = 0
-                    log("Access token received")
+                    log("Access token received", LogLevel.SUCCESS)
                 except (HTTPError, URLError, RuntimeError) as e:
-                    log(f"Token request failed: {e}")
+                    log(f"Token request failed: {e}", LogLevel.ERROR)
                     time.sleep(interval)
                     continue
 
@@ -371,16 +393,19 @@ def main(argv: list[str] | None = None) -> int:
                     bearer=access_token,
                 )
             except (HTTPError, URLError) as e:
-                log(f"Hello call failed: {e}")
+                log(f"Hello call failed: {e}", LogLevel.ERROR)
                 access_token = None
                 time.sleep(interval)
                 continue
 
-            log(f"API response status: {status}")
+            if status < 400:
+                log(f"API response status: {status}", LogLevel.SUCCESS)
+            else:
+                log(f"API response status: {status}", LogLevel.ERROR)
             print(body)
 
             if status >= 400:
-                log("Call failed; refreshing token and continuing")
+                log("Call failed; refreshing token and continuing", LogLevel.ERROR)
                 access_token = None
                 time.sleep(interval)
                 continue

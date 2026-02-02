@@ -18,18 +18,36 @@ import time
 import urllib.parse
 import urllib.request
 from urllib.error import HTTPError, URLError
+from enum import Enum
 
 
 DEBUG = False
 
 
-def log(msg: str):
-    print(f"[slot] {msg}")
+class LogLevel(Enum):
+    DEBUG = "debug"
+    INFO = "info"
+    SUCCESS = "success"
+    ERROR = "error"
+
+
+_COLOR = {
+    LogLevel.DEBUG: "\033[90m",   # light grey
+    LogLevel.INFO: "\033[37m",    # white
+    LogLevel.SUCCESS: "\033[32m", # green
+    LogLevel.ERROR: "\033[31m",   # red
+}
+_RESET = "\033[0m"
+
+
+def log(msg: str, level: LogLevel = LogLevel.INFO):
+    color = _COLOR.get(level, _RESET)
+    print(f"{color}[slot] {msg}{_RESET}")
 
 
 def debug(msg: str):
     if DEBUG:
-        print(f"[debug] {msg}")
+        log(msg, LogLevel.DEBUG)
 
 
 def decode_jwt_payload(token: str) -> dict:
@@ -160,16 +178,16 @@ def main(argv: list[str] | None = None) -> int:
             host="keycloak.local",
         )
     except (HTTPError, URLError) as e:
-        log(f"Token request failed: {e}")
+        log(f"Token request failed: {e}", LogLevel.ERROR)
         return 3
 
     access_token = token_resp.get("access_token")
     if not access_token:
-        log("No access_token returned")
+        log("No access_token returned", LogLevel.ERROR)
         debug(json.dumps(token_resp, indent=2))
         return 4
 
-    log("Access token received")
+    log("Access token received", LogLevel.SUCCESS)
 
     claims = decode_jwt_payload(access_token)
     debug("Decoded JWT claims:")
@@ -195,14 +213,17 @@ def main(argv: list[str] | None = None) -> int:
         bearer=access_token,
     )
 
-    log(f"API response status: {status}")
+    if status < 400:
+        log(f"API response status: {status}", LogLevel.SUCCESS)
+    else:
+        log(f"API response status: {status}", LogLevel.ERROR)
     print(body)
 
     if status >= 400:
-        log("Call failed")
+        log("Call failed", LogLevel.ERROR)
         return 5
 
-    log("Spin completed successfully")
+    log("Spin completed successfully", LogLevel.SUCCESS)
     return 0
 
 
