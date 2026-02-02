@@ -218,11 +218,84 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Bet amount (default: 1).",
     )
     parser.add_argument(
+        "--interval",
+        type=float,
+        default=2.0,
+        help="Seconds between hello calls (default: 2.0).",
+    )
+    parser.add_argument(
+        "--max-calls-per-token",
+        type=int,
+        default=30,
+        help="Refresh token after this many hello calls (default: 30).",
+    )
+    parser.add_argument(
+        "--token-max-age",
+        type=int,
+        default=60,
+        help="Refresh token after this many seconds (default: 60).",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug logging.",
     )
     return parser.parse_args(argv)
+
+
+def fetch_access_token(
+    *,
+    token_url: str,
+    token_aud: str,
+    client_id: str,
+    key_path: str,
+    kid: str | None,
+    token_max_age: int,
+) -> tuple[str, int]:
+    try:
+        client_assertion = build_client_assertion_rs256(
+            client_id=client_id,
+            token_endpoint_aud=token_aud,   # IMPORTANT: must match token endpoint URL Keycloak expects
+            private_key_path=key_path,
+            kid=kid,
+            lifetime_sec=token_max_age,
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to build client_assertion: {e}")
+
+    log("Requesting access token from Keycloak (client_credentials + private_key_jwt)")
+
+    token_resp = post_form(
+        token_url,
+        {
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+            "client_assertion": client_assertion,
+        },
+        host="keycloak.local",
+    )
+
+    access_token = token_resp.get("access_token")
+    if not access_token:
+        debug(json.dumps(token_resp, indent=2))
+        raise RuntimeError("No access_token returned")
+
+    now = int(time.time())
+    expires_in = token_resp.get("expires_in")
+    if isinstance(expires_in, int) and expires_in > 0:
+        exp = now + min(expires_in, token_max_age)
+    else:
+        claims = decode_jwt_payload(access_token)
+        exp = int(claims.get("exp") or 0)
+        if not exp:
+            exp = now + token_max_age
+
+    debug("Decoded JWT claims:")
+    claims = decode_jwt_payload(access_token)
+    debug(json.dumps({k: claims.get(k) for k in ("iss", "aud", "azp", "sub", "exp")}, indent=2))
+
+    return access_token, exp
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -238,6 +311,9 @@ def main(argv: list[str] | None = None) -> int:
     kid = args.kid.strip() if isinstance(args.kid, str) and args.kid.strip() else None
     machine_id = args.machine_id
     bet = args.bet
+    interval = args.interval
+    max_calls_per_token = args.max_calls_per_token
+    token_max_age = args.token_max_age
 
     token_url = f"{ingress_base}/realms/{realm}/protocol/openid-connect/token"
     token_aud = get_token_endpoint(ingress_base, realm)
@@ -248,75 +324,72 @@ def main(argv: list[str] | None = None) -> int:
     log(f"Machine ID: {machine_id}")
     log(f"Client ID: {client_id}")
 
-    # ---- 1) Build client_assertion ----
-    try:
-        client_assertion = build_client_assertion_rs256(
-            client_id=client_id,
-            token_endpoint_aud=token_aud,   # IMPORTANT: must match token endpoint URL Keycloak expects
-            private_key_path=key_path,
-            kid=kid,
-            lifetime_sec=300,
-        )
-    except Exception as e:
-        log(f"Failed to build client_assertion: {e}")
-        return 3
+    access_token: str | None = None
+    token_exp = 0
+    token_calls = 0
 
-    # ---- 2) Token (client_credentials) ----
-    log("Requesting access token from Keycloak (client_credentials + private_key_jwt)")
+    log("Calling protected API via Envoy (loop)")
 
     try:
-        token_resp = post_form(
-            token_url,
-            {
-                "grant_type": "client_credentials",
-                "client_id": client_id,
-                "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-                "client_assertion": client_assertion,
-            },
-            host="keycloak.local",
-        )
-    except (HTTPError, URLError) as e:
-        log(f"Token request failed: {e}")
-        return 4
+        while True:
+            now = int(time.time())
+            needs_refresh = (
+                access_token is None
+                or token_calls >= max_calls_per_token
+                or now >= token_exp - 5
+            )
 
-    access_token = token_resp.get("access_token")
-    if not access_token:
-        log("No access_token returned")
-        debug(json.dumps(token_resp, indent=2))
-        return 5
+            if needs_refresh:
+                try:
+                    access_token, token_exp = fetch_access_token(
+                        token_url=token_url,
+                        token_aud=token_aud,
+                        client_id=client_id,
+                        key_path=key_path,
+                        kid=kid,
+                        token_max_age=token_max_age,
+                    )
+                    token_calls = 0
+                    log("Access token received")
+                except (HTTPError, URLError, RuntimeError) as e:
+                    log(f"Token request failed: {e}")
+                    time.sleep(interval)
+                    continue
 
-    log("Access token received")
+            payload = {
+                "machineId": machine_id,
+                "spinId": f"spin-{int(time.time())}",
+                "bet": bet,
+                "ts": int(time.time()),
+            }
 
-    claims = decode_jwt_payload(access_token)
-    debug("Decoded JWT claims:")
-    debug(json.dumps({k: claims.get(k) for k in ("iss", "aud", "azp", "sub", "exp")}, indent=2))
+            try:
+                status, body = post_json(
+                    hello_url,
+                    payload,
+                    host="hello.local",
+                    bearer=access_token,
+                )
+            except (HTTPError, URLError) as e:
+                log(f"Hello call failed: {e}")
+                access_token = None
+                time.sleep(interval)
+                continue
 
-    # ---- 3) Call hello ----
-    payload = {
-        "machineId": machine_id,
-        "spinId": f"spin-{int(time.time())}",
-        "bet": bet,
-        "ts": int(time.time()),
-    }
+            log(f"API response status: {status}")
+            print(body)
 
-    log("Calling protected API via Envoy")
+            if status >= 400:
+                log("Call failed; refreshing token and continuing")
+                access_token = None
+                time.sleep(interval)
+                continue
 
-    status, body = post_json(
-        hello_url,
-        payload,
-        host="hello.local",
-        bearer=access_token,
-    )
-
-    log(f"API response status: {status}")
-    print(body)
-
-    if status >= 400:
-        log("Call failed")
-        return 6
-
-    log("Spin completed successfully")
-    return 0
+            token_calls += 1
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        log("Stopped by user")
+        return 0
 
 
 if __name__ == "__main__":
