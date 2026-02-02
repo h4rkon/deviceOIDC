@@ -26,16 +26,16 @@ Networking model (your setup):
 
 import base64
 import json
-import os
 import sys
 import time
 import uuid
 import urllib.parse
 import urllib.request
 from urllib.error import HTTPError, URLError
+import argparse
 
 
-DEBUG = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes")
+DEBUG = False
 
 
 def log(msg: str):
@@ -177,23 +177,67 @@ def build_client_assertion_rs256(
     return jwt
 
 
-def main() -> int:
-    ingress_base = os.getenv("INGRESS_BASE", "http://localhost:8081")
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Slot machine demo client (private_key_jwt)."
+    )
+    parser.add_argument(
+        "--ingress-base",
+        default="http://localhost:8081",
+        help="Ingress base URL (default: http://localhost:8081).",
+    )
+    parser.add_argument(
+        "--realm",
+        default="deviceoidc",
+        help="Keycloak realm (default: deviceoidc).",
+    )
+    parser.add_argument(
+        "--client-id",
+        default="slot-machine",
+        help="Keycloak client ID (default: slot-machine).",
+    )
+    parser.add_argument(
+        "--private-key",
+        required=True,
+        help="Path to RSA private key used to sign the client_assertion.",
+    )
+    parser.add_argument(
+        "--kid",
+        default=None,
+        help="Key ID (kid) to set in JWT header (optional).",
+    )
+    parser.add_argument(
+        "--machine-id",
+        default="slot-001",
+        help="Machine ID (default: slot-001).",
+    )
+    parser.add_argument(
+        "--bet",
+        type=int,
+        default=1,
+        help="Bet amount (default: 1).",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging.",
+    )
+    return parser.parse_args(argv)
 
-    realm = os.getenv("KC_REALM", "deviceoidc")
-    client_id = os.getenv("KC_CLIENT_ID", "slot-machine")
 
-    # Path to RSA private key used to sign the client_assertion
-    # Example: ./secrets/slot-machine.key.pem
-    key_path = os.getenv("KC_PRIVATE_KEY", "")
-    kid = os.getenv("KC_KID", "").strip() or None  # optional but often helpful
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
 
-    machine_id = os.getenv("MACHINE_ID", "slot-001")
-    bet = int(os.getenv("BET", "1"))
+    global DEBUG
+    DEBUG = args.debug
 
-    if not key_path:
-        log("KC_PRIVATE_KEY missing (export KC_PRIVATE_KEY=slot-machine.private.pem)")
-        return 2
+    ingress_base = args.ingress_base
+    realm = args.realm
+    client_id = args.client_id
+    key_path = args.private_key
+    kid = args.kid.strip() if isinstance(args.kid, str) and args.kid.strip() else None
+    machine_id = args.machine_id
+    bet = args.bet
 
     token_url = f"{ingress_base}/realms/{realm}/protocol/openid-connect/token"
     token_aud = get_token_endpoint(ingress_base, realm)

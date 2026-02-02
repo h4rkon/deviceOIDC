@@ -10,17 +10,17 @@ Flow:
 No external deps, stdlib only.
 """
 
+import argparse
+import base64
 import json
-import os
 import sys
 import time
-import base64
 import urllib.parse
 import urllib.request
 from urllib.error import HTTPError, URLError
 
 
-DEBUG = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes")
+DEBUG = False
 
 
 def log(msg: str):
@@ -78,20 +78,65 @@ def post_json(url: str, payload: dict, host: str, bearer: str, timeout: int = 10
         return e.code, e.read().decode("utf-8")
 
 
-def main() -> int:
-    ingress_base = os.getenv("INGRESS_BASE", "http://localhost:8081")
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Slot machine demo client.")
+    parser.add_argument(
+        "--ingress-base",
+        default="http://localhost:8081",
+        help="Ingress base URL (default: http://localhost:8081).",
+    )
+    parser.add_argument(
+        "--realm",
+        default="deviceoidc",
+        help="Keycloak realm (default: deviceoidc).",
+    )
+    parser.add_argument(
+        "--client-id",
+        default="deviceoidc-cli",
+        help="Keycloak client ID (default: deviceoidc-cli).",
+    )
+    parser.add_argument(
+        "--username",
+        default="test",
+        help="Keycloak username (default: test).",
+    )
+    parser.add_argument(
+        "--password",
+        required=True,
+        help="Keycloak password.",
+    )
+    parser.add_argument(
+        "--machine-id",
+        default="slot-001",
+        help="Machine ID (default: slot-001).",
+    )
+    parser.add_argument(
+        "--bet",
+        type=int,
+        default=1,
+        help="Bet amount (default: 1).",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging.",
+    )
+    return parser.parse_args(argv)
 
-    realm = os.getenv("KC_REALM", "deviceoidc")
-    client_id = os.getenv("KC_CLIENT_ID", "deviceoidc-cli")
-    username = os.getenv("KC_USER", "test")
-    password = os.getenv("KC_PASS", "")
 
-    machine_id = os.getenv("MACHINE_ID", "slot-001")
-    bet = int(os.getenv("BET", "1"))
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
 
-    if not password:
-        log("KC_PASS missing (export KC_PASS=swordfish)")
-        return 2
+    global DEBUG
+    DEBUG = args.debug
+
+    ingress_base = args.ingress_base
+    realm = args.realm
+    client_id = args.client_id
+    username = args.username
+    password = args.password
+    machine_id = args.machine_id
+    bet = args.bet
 
     token_url = f"{ingress_base}/realms/{realm}/protocol/openid-connect/token"
     hello_url = f"{ingress_base}/hello"

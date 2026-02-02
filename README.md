@@ -390,9 +390,29 @@ Use and setup of python:
 ```bash
 make init
 make shell
-deactive
+deactivate
 make clean
 ``` 
 
-Everything else will be added step by step.
+Minimal client calls (defaults cover most settings):
 
+```bash
+# password grant (user/password)
+./client/machine.py --password "<KC_PASS>"
+
+# private_key_jwt (client credentials)
+./client/machine_key.py --private-key slot-machine.private.pem
+```
+
+Optional overrides if needed:
+
+```bash
+./client/machine.py --ingress-base http://localhost:8081 --realm deviceoidc \
+  --client-id deviceoidc-cli --username test --machine-id slot-001 --bet 1 --debug
+
+./client/machine_key.py --ingress-base http://localhost:8081 --realm deviceoidc \
+  --client-id slot-machine --private-key slot-machine.private.pem --kid "<KID>" \
+  --machine-id slot-001 --bet 1 --debug
+```
+
+Everything else will be added step by step.
