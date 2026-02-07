@@ -8,6 +8,7 @@ EDGE_PORT ?= 8081
 ARGO_PORT ?= 8080
 CLOAK_PORT ?= 8082
 GRFN_PORT ?= 3000
+POST_PORT ?= 5432
 
 KC_PASS ?= swordfish
 
@@ -43,7 +44,7 @@ $(PIDDIR):
 
 .PHONY: pf-start
 pf-start: $(PIDDIR)
-	@echo ">> Starting port-forwards (ingress-nginx -> :$(EDGE_PORT), argocd -> :$(ARGO_PORT), Keycloak -> :$(CLOAK_PORT), Grafana -> :$(GRFN_PORT))"
+	@echo ">> Starting port-forwards (ingress-nginx -> :$(EDGE_PORT), argocd -> :$(ARGO_PORT), Keycloak -> :$(CLOAK_PORT), Grafana -> :$(GRFN_PORT), PostgreSQL -> :$(POST_PORT))"
 	@# ingress-nginx
 	@bash -c ' \
 	  if lsof -nP -iTCP:$(EDGE_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
@@ -60,7 +61,7 @@ pf-start: $(PIDDIR)
 	    (kubectl -n argocd port-forward svc/argocd-server $(ARGO_PORT):80 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-argocd.pid); \
 	    echo "   started argocd port-forward (pid $$(cat $(PIDDIR)/pf-argocd.pid))"; \
 	  fi'
-	@# keycloak
+	@# Keycloak
 	@bash -c ' \
 	  if lsof -nP -iTCP:$(CLOAK_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
 	    echo "   Keycloak  :$(CLOAK_PORT) already listening"; \
@@ -68,7 +69,7 @@ pf-start: $(PIDDIR)
 	    (kubectl -n keycloak port-forward svc/keycloak $(CLOAK_PORT):8080 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-cloak.pid); \
 	    echo "   started Keycloak port-forward (pid $$(cat $(PIDDIR)/pf-cloak.pid))"; \
 	  fi'
-	@# grafana
+	@# Grafana
 	@bash -c ' \
 	  if lsof -nP -iTCP:$(GRFN_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
 	    echo "   Grafana  :$(GRFN_PORT) already listening"; \
@@ -76,12 +77,20 @@ pf-start: $(PIDDIR)
 	    (kubectl -n observability port-forward svc/grafana $(GRFN_PORT):3000 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-grfn.pid); \
 	    echo "   started Grafana port-forward (pid $$(cat $(PIDDIR)/pf-grfn.pid))"; \
 	  fi'
+	@# PostgreSQL
+	@bash -c ' \
+	  if lsof -nP -iTCP:$(POST_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
+	    echo "   PostgreSQL  :$(POST_PORT) already listening"; \
+	  else \
+	    (kubectl -n postgres port-forward svc/postgres $(POST_PORT):5432 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-post.pid); \
+	    echo "   started PostgreSQL port-forward (pid $$(cat $(PIDDIR)/pf-post.pid))"; \
+	  fi'
 
 .PHONY: pf-stop
 pf-stop:
 	@echo ">> Stopping port-forwards"
 	@bash -c ' \
-	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid; do \
+	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid $(PIDDIR)/pf-post.pid; do \
 	    if [ -f $$f ]; then \
 	      pid=$$(cat $$f); \
 	      if kill -0 $$pid >/dev/null 2>&1; then \
@@ -98,9 +107,9 @@ pf-stop:
 .PHONY: pf-status
 pf-status:
 	@echo ">> Port-forward status"
-	@echo "   expected: ingress localhost:$(EDGE_PORT), argocd localhost:$(ARGO_PORT), Keycloak localhost:${CLOAK_PORT} Grafana localhost:${GRFN_PORT}"
+	@echo "   expected: ingress localhost:$(EDGE_PORT), argocd localhost:$(ARGO_PORT), Keycloak localhost:${CLOAK_PORT}, Grafana localhost:${GRFN_PORT}, PostgreSQL localhost:${POST_PORT}"
 	@bash -c ' \
-	  for p in $(EDGE_PORT) $(ARGO_PORT) $(CLOAK_PORT) $(GRFN_PORT); do \
+	  for p in $(EDGE_PORT) $(ARGO_PORT) $(CLOAK_PORT) $(GRFN_PORT) $(POST_PORT); do \
 	    if lsof -nP -iTCP:$$p -sTCP:LISTEN >/dev/null 2>&1; then \
 	      echo "   port $$p: LISTENING"; \
 	    else \
@@ -108,7 +117,7 @@ pf-status:
 	    fi; \
 	  done'
 	@bash -c ' \
-	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid; do \
+	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid $(PIDDIR)/pf-post.pid; do \
 	    if [ -f $$f ]; then echo "   $$(basename $$f): $$(cat $$f)"; else echo "   $$(basename $$f): <none>"; fi; \
 	  done'
 

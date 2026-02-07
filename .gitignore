@@ -4,3 +4,4 @@
 .python
 .pids/
 *.pem
+npm-debug.log

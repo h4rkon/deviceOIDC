@@ -1,0 +1,11 @@
+{
+  "name": "status-generator",
+  "version": "0.1.0",
+  "main": "index.js",
+  "dependencies": {
+    "pg": "^8.9.0"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}

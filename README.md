@@ -433,3 +433,21 @@ Optional overrides if needed:
 ```
 
 Everything else will be added step by step.
+
+# Dataplatform on-premise demo
+
+### 🧱 Initial Database Setup for Data Platform
+
+We use the existing PostgreSQL instance from the OIDC demo to host
+our data platform tables. These are maintained in a dedicated schema
+(`dataplatform`) to avoid interference with the Keycloak operational data.
+
+To initialize the database, execute:
+
+```bash
+psql \
+  -h localhost \
+  -p 5432 \
+  -U keycloak \
+  -d keycloak \
+  -f .scripts/dataplatform_init.sql
