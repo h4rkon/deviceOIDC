@@ -21,7 +21,22 @@ spec:
             - containerPort: 3000
           env:
             - name: PORT
-              value: "3000"
+              value: "3000"env:
+            # PostgreSQL connection
+            - name: POSTGRES_HOST
+              value: "postgres.postgres.svc.cluster.local"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: "keycloak"
+            - name: POSTGRES_USER
+              value: "keycloak"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+
           readinessProbe:
             httpGet:
               path: /healthz
