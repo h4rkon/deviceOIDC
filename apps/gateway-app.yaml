@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:h4rkon/deviceOIDC.git
+    repoURL: https://github.com/h4rkon/deviceOIDC.git
     targetRevision: main
     path: manifests/gateway
   destination:
