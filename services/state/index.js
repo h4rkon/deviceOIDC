@@ -3,11 +3,11 @@ const players = require("./players");
 
 // Postgres config über Environment Vars
 const client = new Client({
-    host: process.env.PG_HOST,
-    port: parseInt(process.env.PG_PORT || "5432", 10),
-    database: process.env.PG_DATABASE,
-    user: process.env.PG_USER,
-    password: process.env.PG_PASSWORD
+    host: process.env.POSTGRES_HOST,
+    port: parseInt(process.env.POSTGRES_PORT || "5432", 10),
+    database: process.env.POSTGRES_PORT,
+    user: process.env.POSTGRES_USER,
+    password: process.env.POSTGRES_PASSWORD
 });
 
 // Random Element Helper
