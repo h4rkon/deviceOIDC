@@ -19,33 +19,33 @@ spec:
         ports:
           - containerPort: 8083
         env:
-          - name: CONNECT_BOOTSTRAP_SERVERS
+          - name: BOOTSTRAP_SERVERS
             value: "kafka.kafka.svc.cluster.local:9092"
-          - name: CONNECT_GROUP_ID
+          - name: GROUP_ID
             value: "connect-cluster"
-          - name: CONNECT_CONFIG_STORAGE_TOPIC
+          - name: CONFIG_STORAGE_TOPIC
             value: "connect-configs"
-          - name: CONNECT_OFFSET_STORAGE_TOPIC
+          - name: OFFSET_STORAGE_TOPIC
             value: "connect-offsets"
-          - name: CONNECT_STATUS_STORAGE_TOPIC
+          - name: STATUS_STORAGE_TOPIC
             value: "connect-status"
-          - name: CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR
+          - name: CONFIG_STORAGE_REPLICATION_FACTOR
             value: "1"
-          - name: CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR
+          - name: OFFSET_STORAGE_REPLICATION_FACTOR
             value: "1"
-          - name: CONNECT_STATUS_STORAGE_REPLICATION_FACTOR
+          - name: STATUS_STORAGE_REPLICATION_FACTOR
             value: "1"
-          - name: CONNECT_KEY_CONVERTER
+          - name: KEY_CONVERTER
             value: "org.apache.kafka.connect.json.JsonConverter"
-          - name: CONNECT_VALUE_CONVERTER
+          - name: VALUE_CONVERTER
             value: "org.apache.kafka.connect.json.JsonConverter"
-          - name: CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE
+          - name: KEY_CONVERTER_SCHEMAS_ENABLE
             value: "false"
-          - name: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
+          - name: VALUE_CONVERTER_SCHEMAS_ENABLE
             value: "false"
-          - name: CONNECT_REST_ADVERTISED_HOST_NAME
+          - name: REST_ADVERTISED_HOST_NAME
             value: "connect"
-          - name: CONNECT_REST_PORT
+          - name: REST_PORT
             value: "8083"
-          - name: CONNECT_LOG4J_ROOT_LOGLEVEL
+          - name: LOG_LEVEL
             value: "INFO"
