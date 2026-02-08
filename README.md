@@ -508,3 +508,54 @@ kubectl -n kafka exec redpanda-0 -- sh -lc "echo hello | rpk topic produce sanit
 kubectl -n kafka exec redpanda-0 -- sh -lc "rpk topic consume sanity -n 1 -X brokers=redpanda.kafka.svc.cluster.local:9092"
 kubectl -n kafka exec redpanda-0 -- sh -lc "rpk topic delete sanity -X brokers=redpanda.kafka.svc.cluster.local:9092"
 ```
+
+### Debezium CDC (Postgres -> Redpanda)
+
+Create the connector (from repo root):
+
+```bash
+kubectl -n kafka exec deploy/connect -- sh -lc \
+  "cat <<'JSON' | curl -sS -X POST -H 'Content-Type: application/json' \
+  --data-binary @- http://localhost:8083/connectors
+{
+  \"name\": \"dataplatform-postgres-connector\",
+  \"config\": {
+    \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
+    \"tasks.max\": \"1\",
+    \"database.hostname\": \"postgres.postgres.svc.cluster.local\",
+    \"database.port\": \"5432\",
+    \"database.user\": \"keycloak\",
+    \"database.password\": \"keycloak\",
+    \"database.dbname\": \"keycloak\",
+    \"database.server.name\": \"dataplatform\",
+    \"topic.prefix\": \"dataplatform\",
+    \"schema.include.list\": \"dataplatform\",
+    \"table.include.list\": \"dataplatform.status_abfrage\",
+    \"plugin.name\": \"pgoutput\",
+    \"snapshot.mode\": \"initial\",
+    \"publication.autocreate.mode\": \"filtered\"
+  }
+}
+JSON"
+```
+
+List connectors:
+
+```bash
+kubectl -n kafka exec deploy/connect -- sh -lc \
+  "curl -sS http://localhost:8083/connectors"
+```
+
+Check connector status:
+
+```bash
+kubectl -n kafka exec deploy/connect -- sh -lc \
+  "curl -sS http://localhost:8083/connectors/dataplatform-postgres-connector/status"
+```
+
+Consume CDC events (in-cluster):
+
+```bash
+kubectl -n kafka exec redpanda-0 -- sh -lc \
+  "rpk topic consume dataplatform.dataplatform.status_abfrage -n 1 -X brokers=redpanda.kafka.svc.cluster.local:9092"
+```

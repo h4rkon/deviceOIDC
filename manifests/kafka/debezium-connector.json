@@ -1,0 +1,19 @@
+{
+  "name": "dataplatform-postgres-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "database.hostname": "postgres.postgres.svc.cluster.local",
+    "database.port": "5432",
+    "database.user": "keycloak",
+    "database.password": "keycloak",
+    "database.dbname": "keycloak",
+    "database.server.name": "dataplatform",
+    "topic.prefix": "dataplatform",
+    "schema.include.list": "dataplatform",
+    "table.include.list": "dataplatform.status_abfrage",
+    "plugin.name": "pgoutput",
+    "snapshot.mode": "initial",
+    "publication.autocreate.mode": "filtered"
+  }
+}
