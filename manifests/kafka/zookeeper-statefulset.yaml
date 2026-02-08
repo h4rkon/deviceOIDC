@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zookeeper
+  namespace: kafka
+spec:
+  serviceName: zookeeper
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+    spec:
+      containers:
+      - name: zookeeper
+        image: bitnami/zookeeper:3.9
+        ports:
+          - containerPort: 2181
+        env:
+          - name: ALLOW_ANONYMOUS_LOGIN
+            value: "yes"
+        volumeMounts:
+          - name: data
+            mountPath: /bitnami/zookeeper
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi

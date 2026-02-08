@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: connect
+  namespace: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: connect
+  template:
+    metadata:
+      labels:
+        app: connect
+    spec:
+      containers:
+      - name: connect
+        image: debezium/connect:2.5
+        ports:
+          - containerPort: 8083
+        env:
+          - name: CONNECT_BOOTSTRAP_SERVERS
+            value: "kafka.kafka.svc.cluster.local:9092"
+          - name: CONNECT_GROUP_ID
+            value: "connect-cluster"
+          - name: CONNECT_CONFIG_STORAGE_TOPIC
+            value: "connect-configs"
+          - name: CONNECT_OFFSET_STORAGE_TOPIC
+            value: "connect-offsets"
+          - name: CONNECT_STATUS_STORAGE_TOPIC
+            value: "connect-status"
+          - name: CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR
+            value: "1"
+          - name: CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR
+            value: "1"
+          - name: CONNECT_STATUS_STORAGE_REPLICATION_FACTOR
+            value: "1"
+          - name: CONNECT_KEY_CONVERTER
+            value: "org.apache.kafka.connect.json.JsonConverter"
+          - name: CONNECT_VALUE_CONVERTER
+            value: "org.apache.kafka.connect.json.JsonConverter"
+          - name: CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE
+            value: "false"
+          - name: CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE
+            value: "false"
+          - name: CONNECT_REST_ADVERTISED_HOST_NAME
+            value: "connect"
+          - name: CONNECT_REST_PORT
+            value: "8083"
+          - name: CONNECT_LOG4J_ROOT_LOGLEVEL
+            value: "INFO"

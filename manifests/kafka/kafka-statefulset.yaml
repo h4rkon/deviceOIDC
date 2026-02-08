@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: kafka
+spec:
+  serviceName: kafka-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+    spec:
+      containers:
+      - name: kafka
+        image: bitnami/kafka:3.6
+        ports:
+          - containerPort: 9092
+        env:
+          - name: ALLOW_PLAINTEXT_LISTENER
+            value: "yes"
+          - name: KAFKA_CFG_ZOOKEEPER_CONNECT
+            value: "zookeeper.kafka.svc.cluster.local:2181"
+          - name: KAFKA_CFG_LISTENERS
+            value: "PLAINTEXT://:9092"
+          - name: KAFKA_CFG_ADVERTISED_LISTENERS
+            value: "PLAINTEXT://kafka.kafka.svc.cluster.local:9092"
+          - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
+            value: "true"
+        volumeMounts:
+          - name: data
+            mountPath: /bitnami/kafka
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
