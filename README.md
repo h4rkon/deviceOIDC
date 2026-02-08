@@ -574,6 +574,7 @@ kubectl -n minio apply -f manifests/minio/warehouse-job.yaml
 
 Iceberg sink runs in a dedicated Kafka Connect deployment:
 * Connect REST: `iceberg-connect.kafka.svc.cluster.local:8083`
+* Image: `docker.io/h4rkon/iceberg-connect:latest` (built from the public Databricks Iceberg Connect runtime release)
 
 Create the Iceberg sink connector:
 
@@ -584,7 +585,7 @@ kubectl -n kafka exec deploy/iceberg-connect -- sh -lc \
 {
   \"name\": \"iceberg-sink\",
   \"config\": {
-    \"connector.class\": \"io.tabular.iceberg.connect.IcebergSinkConnector\",
+  \"connector.class\": \"org.apache.iceberg.connect.IcebergSinkConnector\",
     \"tasks.max\": \"1\",
     \"topics\": \"dataplatform.dataplatform.status_abfrage\",
     \"iceberg.catalog.type\": \"hadoop\",

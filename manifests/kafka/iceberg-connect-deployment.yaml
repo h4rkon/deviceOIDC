@@ -13,11 +13,9 @@ spec:
       labels:
         app: iceberg-connect
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull
       containers:
       - name: connect
-        image: ghcr.io/tabulario/iceberg-kafka-connect:0.6.0
+        image: docker.io/h4rkon/iceberg-connect:latest
         ports:
           - containerPort: 8083
         env:

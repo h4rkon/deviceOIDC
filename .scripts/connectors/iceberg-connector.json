@@ -1,7 +1,7 @@
 {
   "name": "iceberg-sink",
   "config": {
-    "connector.class": "io.tabular.iceberg.connect.IcebergSinkConnector",
+    "connector.class": "org.apache.iceberg.connect.IcebergSinkConnector",
     "tasks.max": "1",
     "topics": "dataplatform.dataplatform.status_abfrage",
     "iceberg.catalog.type": "hadoop",
