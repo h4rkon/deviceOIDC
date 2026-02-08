@@ -685,6 +685,18 @@ SHOW TABLES FROM iceberg.dataplatform;
 SELECT * FROM iceberg.dataplatform.status_abfrage LIMIT 5;
 ```
 
+Interactive Trino query runner (HTTP):
+
+```bash
+.python/bin/python .scripts/trino_query.py
+```
+
+Then type a SQL statement, for example:
+
+```sql
+SELECT * FROM iceberg.silver.status_abfrage LIMIT 5;
+```
+
 ### dbt (silver layer)
 
 The `dbt/` folder contains a minimal dbt project that flattens the CDC
