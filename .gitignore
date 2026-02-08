@@ -5,3 +5,4 @@
 .pids/
 *.pem
 npm-debug.log
+.codex/
