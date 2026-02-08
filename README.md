@@ -729,3 +729,39 @@ make dbt-run
 make dbt-ol-run
 DBT_INTERVAL=60 make dbt-loop
 ```
+
+### dbt (gold layer)
+
+Gold models build aggregated, queryable views on top of the silver table.
+
+Models:
+* `dbt/models/gold/veranstalter_query_counts.sql` - counts per `veranstalter_id`
+* `dbt/models/gold/veranstalter_device_overview.sql` - counts by `veranstalter_id`,
+  `betriebsstaette_id`, `geraete_id`
+
+Optional dbt vars (CDC time window + optional veranstalter filter):
+* `from_cdc_ts_ms` (inclusive)
+* `until_cdc_ts_ms` (inclusive)
+* `veranstalter_id`
+
+Examples:
+
+```bash
+# Full gold build (all data)
+DBT_PROFILES_DIR=dbt dbt --project-dir dbt run --select gold
+
+# Filter by timeframe (epoch ms)
+DBT_PROFILES_DIR=dbt dbt --project-dir dbt run --select gold \
+  --vars '{"from_cdc_ts_ms": 1770550000000, "until_cdc_ts_ms": 1770560000000}'
+
+# Filter by veranstalter_id
+DBT_PROFILES_DIR=dbt dbt --project-dir dbt run --select gold \
+  --vars '{"veranstalter_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}'
+```
+
+Sample Trino queries:
+
+```sql
+SELECT * FROM iceberg.gold.veranstalter_query_counts ORDER BY query_count DESC;
+SELECT * FROM iceberg.gold.veranstalter_device_overview ORDER BY veranstalter_id, betriebsstaette_id, geraete_id;
+```
