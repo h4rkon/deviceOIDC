@@ -466,3 +466,22 @@ Behavior:
 Notes:
 * Connection is configured via `POSTGRES_*` env vars in `manifests/state/deployment.yaml`
 * Data lives in the `dataplatform` schema inside the shared Postgres instance
+
+### Object storage (MinIO)
+
+MinIO provides the S3-compatible blob storage used later by Iceberg.
+Manifests live in `manifests/minio`.
+
+Default credentials (demo only):
+* user: `minioadmin`
+* password: `minioadmin`
+
+Access (port-forward):
+
+```bash
+kubectl -n minio port-forward svc/minio 9000:9000 9001:9001
+```
+
+Then open:
+* S3 API: http://localhost:9000
+* Console: http://localhost:9001
