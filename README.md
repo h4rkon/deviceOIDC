@@ -646,6 +646,14 @@ Port-forward Nessie:
 kubectl -n nessie port-forward svc/nessie 19120:19120
 ```
 
+Create the Iceberg namespace in Nessie (one-time):
+
+```bash
+kubectl -n trino port-forward svc/trino 8080:8080
+curl -sS -H 'X-Trino-User: admin' -X POST --data 'CREATE SCHEMA IF NOT EXISTS iceberg.dataplatform' \
+  http://localhost:8080/v1/statement
+```
+
 Port-forward Marquez (API + UI):
 
 ```bash
