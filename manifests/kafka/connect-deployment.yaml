@@ -20,7 +20,7 @@ spec:
           - containerPort: 8083
         env:
           - name: BOOTSTRAP_SERVERS
-            value: "kafka.kafka.svc.cluster.local:9092"
+            value: "redpanda.kafka.svc.cluster.local:9092"
           - name: GROUP_ID
             value: "connect-cluster"
           - name: CONFIG_STORAGE_TOPIC

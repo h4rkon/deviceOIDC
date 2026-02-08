@@ -486,11 +486,16 @@ Then open:
 * S3 API: http://localhost:9000
 * Console: http://localhost:9001
 
-### Kafka + Connect (CDC backbone)
+### Kafka/Redpanda + Connect (CDC backbone)
 
-Kafka and Kafka Connect run in the `kafka` namespace.
+For the PoC we run a single-node Kafka-compatible broker using Redpanda
+to reduce operational overhead. On a production cluster, this should be
+replaced with a real Kafka deployment (multi-broker, proper storage and
+replication).
+
+Everything runs in the `kafka` namespace.
 Manifests live in `manifests/kafka`.
 
 Services:
-* Kafka bootstrap: `kafka.kafka.svc.cluster.local:9092`
+* Broker bootstrap: `redpanda.kafka.svc.cluster.local:9092`
 * Connect REST: `connect.kafka.svc.cluster.local:8083`
