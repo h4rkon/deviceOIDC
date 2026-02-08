@@ -16,6 +16,16 @@ spec:
     spec:
       securityContext:
         fsGroup: 1000
+      initContainers:
+      - name: init-perms
+        image: busybox:1.36
+        command:
+          - sh
+          - -c
+          - chown -R 1000:1000 /var/lib/zookeeper
+        volumeMounts:
+          - name: data
+            mountPath: /var/lib/zookeeper
       containers:
       - name: zookeeper
         image: confluentinc/cp-zookeeper:7.5.3
