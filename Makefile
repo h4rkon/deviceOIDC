@@ -16,6 +16,16 @@ MARQUEZ_UI_PORT ?= 3001
 
 KC_PASS ?= swordfish
 
+DBT_PROJECT_DIR ?= dbt
+DBT_PROFILES_DIR ?= dbt
+DBT_INTERVAL ?= 60
+OPENLINEAGE_URL ?= http://localhost:5005
+OPENLINEAGE_NAMESPACE ?= dataplatform
+OPENLINEAGE_DBT_JOB_NAME ?= dbt-silver
+OPENLINEAGE_JOB_TAG_PROJECT ?= dataplatform
+OPENLINEAGE_JOB_TAG_LAYER ?= silver
+OPENLINEAGE_RUN_TAG_ENV ?= local
+
 VENV := .python
 PYTHON := python3
 PIP := $(VENV)/bin/pip
@@ -29,6 +39,9 @@ help:
 	@echo "  make pf-start         Start port-forwards (argocd + ingress-nginx) in background"
 	@echo "  make pf-stop          Stop port-forwards"
 	@echo "  make pf-status        Show port-forward PIDs / listeners"
+	@echo "  make dbt-run          Run dbt (silver models) once"
+	@echo "  make dbt-ol-run       Run dbt with OpenLineage -> Marquez"
+	@echo "  make dbt-loop         Run dbt-ol on an interval"
 	@echo ""
 	@echo "Variables:"
 	@echo "  EDGE_PORT=8081        Local port forwarded to ingress-nginx svc:80"
@@ -40,6 +53,32 @@ help:
 	@echo "  NESSIE_PORT=19120     Local port forwarded to Nessie svc:19120"
 	@echo "  MARQUEZ_PORT=5005     Local port forwarded to Marquez API svc:5000"
 	@echo "  MARQUEZ_UI_PORT=3001  Local port forwarded to Marquez UI svc:3000"
+	@echo "  DBT_INTERVAL=60       Seconds between dbt runs (dbt-loop)"
+	@echo "  OPENLINEAGE_URL=http://localhost:5005  OpenLineage endpoint"
+	@echo ""
+
+.PHONY: dbt-run
+dbt-run:
+	@DBT_PROFILES_DIR=$(DBT_PROFILES_DIR) $(VENV)/bin/python -m dbt.cli.main run --project-dir $(DBT_PROJECT_DIR)
+
+.PHONY: dbt-ol-run
+dbt-ol-run:
+	@OPENLINEAGE_URL=$(OPENLINEAGE_URL) \
+	  OPENLINEAGE_NAMESPACE=$(OPENLINEAGE_NAMESPACE) \
+	  OPENLINEAGE_DBT_JOB_NAME=$(OPENLINEAGE_DBT_JOB_NAME) \
+	  OPENLINEAGE__TAGS__JOB__project=$(OPENLINEAGE_JOB_TAG_PROJECT) \
+	  OPENLINEAGE__TAGS__JOB__layer=$(OPENLINEAGE_JOB_TAG_LAYER) \
+	  OPENLINEAGE__TAGS__RUN__env=$(OPENLINEAGE_RUN_TAG_ENV) \
+	  DBT_PROFILES_DIR=$(DBT_PROFILES_DIR) \
+	  $(VENV)/bin/dbt-ol run --project-dir $(DBT_PROJECT_DIR) --profiles-dir $(DBT_PROFILES_DIR)
+
+.PHONY: dbt-loop
+dbt-loop:
+	@echo ">> Running dbt-ol every $(DBT_INTERVAL)s (Ctrl+C to stop)"
+	@while true; do \
+	  $(MAKE) dbt-ol-run; \
+	  sleep $(DBT_INTERVAL); \
+	done
 	@echo ""
 
 .PHONY: check

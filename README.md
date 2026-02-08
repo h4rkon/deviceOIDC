@@ -689,6 +689,9 @@ SELECT * FROM iceberg.dataplatform.status_abfrage LIMIT 5;
 
 The `dbt/` folder contains a minimal dbt project that flattens the CDC
 envelope into a silver table (`dbt/models/silver/status_abfrage.sql`).
+The model is incremental (merge on `unique_identifier`) and only processes
+rows newer than the latest `cdc_ts_ms` in the silver table. Use a full refresh
+when you want a complete rebuild.
 
 Quick start (local dbt-trino):
 
@@ -697,7 +700,18 @@ pip install dbt-trino openlineage-dbt
 cp dbt/profiles.yml.example dbt/profiles.yml
 DBT_PROFILES_DIR=dbt dbt --project-dir dbt run
 
+# Full rebuild
+DBT_PROFILES_DIR=dbt dbt --project-dir dbt run --full-refresh
+
 # With OpenLineage -> Marquez
 OPENLINEAGE_URL=http://localhost:5005 OPENLINEAGE_NAMESPACE=dataplatform \
   DBT_PROFILES_DIR=dbt dbt-ol run --project-dir dbt
+```
+
+Make targets (uses defaults from `Makefile` for OpenLineage job name + tags):
+
+```bash
+make dbt-run
+make dbt-ol-run
+DBT_INTERVAL=60 make dbt-loop
 ```

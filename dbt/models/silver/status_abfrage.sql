@@ -1,4 +1,8 @@
-{{ config(materialized='table') }}
+{{ config(
+  materialized='incremental',
+  incremental_strategy='merge',
+  unique_key='unique_identifier'
+) }}
 
 with cdc as (
   select
@@ -14,6 +18,9 @@ with cdc as (
     ts_ms as cdc_ts_ms
   from {{ source('bronze', 'status_abfrage') }}
   where after is not null
+  {% if is_incremental() %}
+    and ts_ms > (select coalesce(max(cdc_ts_ms), 0) from {{ this }})
+  {% endif %}
 ),
 deduped as (
   select
