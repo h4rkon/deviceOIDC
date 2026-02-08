@@ -1,5 +1,6 @@
 const { Client } = require("pg");
 const players = require("./players");
+const devices = require("./devices");
 
 // Postgres config über Environment Vars
 const client = new Client({
@@ -17,6 +18,7 @@ function chooseRandom(arr) {
 
 async function insertStatus() {
     const player = chooseRandom(players);
+    const device = chooseRandom(devices);
 
     const query = `
     INSERT INTO dataplatform.status_abfrage (
@@ -35,9 +37,9 @@ async function insertStatus() {
   `;
 
     const values = [
-        player.veranstalter_id,
-        player.betriebsstaette_id,
-        player.geraete_id,
+        device.veranstalter_id,
+        device.betriebsstaette_id,
+        device.geraete_id,
         player.vorname,
         player.nachname,
         player.geburtsdatum
