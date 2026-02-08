@@ -31,6 +31,10 @@ spec:
             value: "us-east-1"
           - name: AWS_EC2_METADATA_DISABLED
             value: "true"
+          - name: HADOOP_CONF_DIR
+            value: "/etc/hadoop"
+          - name: KAFKA_OPTS
+            value: "-Dfs.s3a.endpoint=http://minio.minio.svc.cluster.local:9000 -Dfs.s3a.connection.ssl.enabled=false -Dfs.s3a.path.style.access=true -Dfs.s3a.access.key=minioadmin -Dfs.s3a.secret.key=minioadmin -Dfs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider -Dfs.s3a.endpoint.region=us-east-1 -Dfs.s3a.region=us-east-1"
           - name: CONFIG_STORAGE_TOPIC
             value: "iceberg-connect-configs"
           - name: OFFSET_STORAGE_TOPIC
@@ -57,3 +61,11 @@ spec:
             value: "8083"
           - name: LOG_LEVEL
             value: "INFO"
+        volumeMounts:
+          - name: hadoop-config
+            mountPath: /etc/hadoop
+            readOnly: true
+      volumes:
+        - name: hadoop-config
+          configMap:
+            name: iceberg-connect-hadoop-config

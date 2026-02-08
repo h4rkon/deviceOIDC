@@ -565,6 +565,7 @@ Notes:
 * `snapshot.mode=initial` emits a one-time snapshot (`op: r`) followed by live changes (`op: c/u/d`)
 
 ### Iceberg sink (Redpanda -> MinIO)
+Note on "AWS" config: Iceberg uses Hadoop S3A to talk to S3-compatible storage. MinIO speaks S3, so the settings look like AWS (`fs.s3a.*`, access/secret keys, region), but they are just the S3 protocol knobs pointed at MinIO.
 
 Create the MinIO bucket (one-time):
 
@@ -590,15 +591,15 @@ kubectl -n kafka exec deploy/iceberg-connect -- sh -lc \
     \"topics\": \"dataplatform.dataplatform.status_abfrage\",
     \"iceberg.catalog.type\": \"hadoop\",
     \"iceberg.catalog.warehouse\": \"s3a://warehouse/\",
-  \"iceberg.catalog.io-impl\": \"org.apache.iceberg.aws.s3.S3FileIO\",
-  \"iceberg.catalog.s3.endpoint\": \"http://minio.minio.svc.cluster.local:9000\",
-  \"iceberg.catalog.s3.path-style-access\": \"true\",
-  \"iceberg.catalog.s3.access-key-id\": \"minioadmin\",
-  \"iceberg.catalog.s3.secret-access-key\": \"minioadmin\",
+  \"iceberg.catalog.io-impl\": \"org.apache.iceberg.hadoop.HadoopFileIO\",
   \"iceberg.catalog.hadoop.fs.s3a.endpoint\": \"http://minio.minio.svc.cluster.local:9000\",
+  \"iceberg.catalog.hadoop.fs.s3a.connection.ssl.enabled\": \"false\",
   \"iceberg.catalog.hadoop.fs.s3a.path.style.access\": \"true\",
   \"iceberg.catalog.hadoop.fs.s3a.access.key\": \"minioadmin\",
   \"iceberg.catalog.hadoop.fs.s3a.secret.key\": \"minioadmin\",
+  \"iceberg.catalog.hadoop.fs.s3a.aws.credentials.provider\": \"org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\",
+  \"iceberg.catalog.hadoop.fs.s3a.endpoint.region\": \"us-east-1\",
+  \"iceberg.catalog.hadoop.fs.s3a.region\": \"us-east-1\",
     \"iceberg.tables\": \"dataplatform.status_abfrage\",
     \"iceberg.tables.auto-create-enabled\": \"true\",
     \"iceberg.tables.auto-create-props.write.format.default\": \"parquet\"
