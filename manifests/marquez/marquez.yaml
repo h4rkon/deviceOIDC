@@ -17,6 +17,8 @@ spec:
       - name: marquez
         image: marquezproject/marquez:0.42.0
         env:
+          - name: MARQUEZ_CONFIG
+            value: /etc/marquez/marquez.yml
           - name: MARQUEZ_PORT
             value: "5000"
           - name: MARQUEZ_ADMIN_PORT
@@ -43,6 +45,10 @@ spec:
         ports:
           - containerPort: 5000
           - containerPort: 5001
+        volumeMounts:
+          - name: marquez-config
+            mountPath: /etc/marquez
+            readOnly: true
         readinessProbe:
           httpGet:
             path: /api/v1/namespaces
@@ -55,6 +61,10 @@ spec:
             port: 5000
           initialDelaySeconds: 20
           periodSeconds: 20
+      volumes:
+        - name: marquez-config
+          configMap:
+            name: marquez-config
 ---
 apiVersion: v1
 kind: Service

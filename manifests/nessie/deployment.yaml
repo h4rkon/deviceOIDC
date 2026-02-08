@@ -21,15 +21,16 @@ spec:
             value: "19120"
         ports:
           - containerPort: 19120
+          - containerPort: 9000
         readinessProbe:
           httpGet:
             path: /q/health/ready
-            port: 19120
+            port: 9000
           initialDelaySeconds: 10
           periodSeconds: 10
         livenessProbe:
           httpGet:
             path: /q/health/live
-            port: 19120
+            port: 9000
           initialDelaySeconds: 20
           periodSeconds: 20
