@@ -6,3 +6,7 @@
 *.pem
 npm-debug.log
 .codex/
+dbt/target/
+dbt/logs/
+dbt/.user.yml
+dbt/profiles.yml
