@@ -8,9 +8,10 @@ data:
     coordinator=true
     node-scheduler.include-coordinator=true
     http-server.http.port=8080
-    query.max-memory=512MB
-    query.max-memory-per-node=512MB
-    query.max-total-memory=1GB
+    query.max-memory=256MB
+    query.max-memory-per-node=256MB
+    query.max-total-memory=512MB
+    memory.heap-headroom-per-node=64MB
     discovery-server.enabled=true
     discovery.uri=http://localhost:8080
   node.properties: |
