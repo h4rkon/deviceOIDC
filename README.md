@@ -559,3 +559,7 @@ Consume CDC events (in-cluster):
 kubectl -n kafka exec redpanda-0 -- sh -lc \
   "rpk topic consume dataplatform.dataplatform.status_abfrage -n 1 -X brokers=redpanda.kafka.svc.cluster.local:9092"
 ```
+
+Notes:
+* Topic naming is `<topic.prefix>.<schema>.<table>` (here: `dataplatform.dataplatform.status_abfrage`)
+* `snapshot.mode=initial` emits a one-time snapshot (`op: r`) followed by live changes (`op: c/u/d`)
