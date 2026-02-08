@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trino
+  namespace: trino
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trino
+  template:
+    metadata:
+      labels:
+        app: trino
+    spec:
+      containers:
+      - name: trino
+        image: trinodb/trino:429
+        ports:
+          - containerPort: 8080
+        volumeMounts:
+          - name: trino-config
+            mountPath: /etc/trino
+          - name: trino-catalog
+            mountPath: /etc/trino/catalog
+          - name: trino-data
+            mountPath: /var/trino
+        readinessProbe:
+          httpGet:
+            path: /v1/info
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /v1/info
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 20
+      volumes:
+        - name: trino-config
+          configMap:
+            name: trino-config
+        - name: trino-catalog
+          configMap:
+            name: trino-catalog
+        - name: trino-data
+          emptyDir: {}

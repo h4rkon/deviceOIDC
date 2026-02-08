@@ -625,3 +625,35 @@ Check sink status:
 kubectl -n kafka exec deploy/iceberg-connect -- sh -lc \
   "curl -sS http://localhost:8083/connectors/iceberg-sink/status"
 ```
+
+### Trino (SQL on Iceberg)
+
+Trino provides SQL access to the Iceberg tables stored in MinIO.
+Manifests live in `manifests/trino`, and the Argo app is `apps/trino-app.yaml`.
+
+Port-forward Trino:
+
+```bash
+kubectl -n trino port-forward svc/trino 8080:8080
+```
+
+Example queries:
+
+```sql
+SHOW SCHEMAS FROM iceberg;
+SHOW TABLES FROM iceberg.dataplatform;
+SELECT * FROM iceberg.dataplatform.status_abfrage LIMIT 5;
+```
+
+### dbt (silver layer)
+
+The `dbt/` folder contains a minimal dbt project that flattens the CDC
+envelope into a silver table (`dbt/models/silver/status_abfrage.sql`).
+
+Quick start (local dbt-trino):
+
+```bash
+pip install dbt-trino
+cp dbt/profiles.yml.example ~/.dbt/profiles.yml
+dbt --project-dir dbt run
+```

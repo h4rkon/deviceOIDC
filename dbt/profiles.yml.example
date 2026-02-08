@@ -1,0 +1,12 @@
+dataplatform:
+  target: dev
+  outputs:
+    dev:
+      type: trino
+      method: none
+      user: trino
+      host: localhost
+      port: 8080
+      catalog: iceberg
+      schema: silver
+      threads: 1
