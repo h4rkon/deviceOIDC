@@ -1,24 +1,21 @@
 {{ config(
   materialized='incremental',
   incremental_strategy='merge',
-  unique_key='unique_identifier',
+  unique_key='assignment_id',
   views_enabled=false
 ) }}
 
 with cdc as (
   select
-    after.unique_identifier as unique_identifier,
-    after.status_ts as status_ts,
+    after.id as assignment_id,
+    after.geraet_id as geraete_id,
     after.veranstalter_id as veranstalter_id,
     after.betriebsstaette_id as betriebsstaette_id,
-    after.geraete_id as geraete_id,
-    after.player_id as player_id,
-    after.vorname as vorname,
-    after.nachname as nachname,
-    after.geburtsdatum as geburtsdatum,
+    after.valid_from as valid_from,
+    after.valid_to as valid_to,
     op as cdc_op,
     ts_ms as cdc_ts_ms
-  from {{ source('bronze', 'status_abfrage') }}
+  from {{ source('bronze', 'device_assignment') }}
   where after is not null
   {% if is_incremental() %}
     and ts_ms > (select coalesce(max(cdc_ts_ms), 0) from {{ this }})
@@ -28,21 +25,18 @@ deduped as (
   select
     *,
     row_number() over (
-      partition by unique_identifier
+      partition by assignment_id
       order by cdc_ts_ms desc
     ) as rn
   from cdc
 )
 select
-  unique_identifier,
-  status_ts,
+  assignment_id,
+  geraete_id,
   veranstalter_id,
   betriebsstaette_id,
-  geraete_id,
-  player_id,
-  vorname,
-  nachname,
-  geburtsdatum,
+  valid_from,
+  valid_to,
   cdc_op,
   cdc_ts_ms
 from deduped

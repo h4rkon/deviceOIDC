@@ -1,7 +1,7 @@
 -- #########################################################
 -- # Data Platform Init Script
--- # Context: create dedicated schema + table + publication
--- # for "Status Abfrage" in existing Keycloak Postgres DB
+-- # Context: create dedicated schema + tables + publication
+-- # for the data platform in existing Keycloak Postgres DB
 -- #########################################################
 
 
@@ -12,16 +12,51 @@ CREATE SCHEMA IF NOT EXISTS dataplatform;
 --    You may adjust based on your Postgres setup.
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- 3) Create status_abfrage table
---    This table logs status queries (insert-only use case)
+-- 3) Create lookup + fact tables
+CREATE TABLE IF NOT EXISTS dataplatform.veranstalter (
+    id                  UUID PRIMARY KEY,
+    name                TEXT NOT NULL,
+    region              TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dataplatform.betriebsstaette (
+    id                  UUID PRIMARY KEY,
+    veranstalter_id     UUID NOT NULL REFERENCES dataplatform.veranstalter(id),
+    name                TEXT NOT NULL,
+    city                TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dataplatform.geraet (
+    id                  UUID PRIMARY KEY,
+    serial              TEXT,
+    model               TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dataplatform.player (
+    id                  UUID PRIMARY KEY,
+    vorname             TEXT NOT NULL,
+    nachname            TEXT NOT NULL,
+    geburtsdatum        DATE
+);
+
+CREATE TABLE IF NOT EXISTS dataplatform.device_assignment (
+    id                  UUID PRIMARY KEY,
+    geraet_id           UUID NOT NULL REFERENCES dataplatform.geraet(id),
+    veranstalter_id     UUID NOT NULL REFERENCES dataplatform.veranstalter(id),
+    betriebsstaette_id  UUID NOT NULL REFERENCES dataplatform.betriebsstaette(id),
+    valid_from          timestamptz NOT NULL,
+    valid_to            timestamptz
+);
+
 CREATE TABLE IF NOT EXISTS dataplatform.status_abfrage (
     unique_identifier    UUID PRIMARY KEY,
     status_ts            timestamptz NOT NULL DEFAULT now(),
-    veranstalter_id      UUID,
-    betriebsstaette_id   UUID,
-    geraete_id           UUID,
-    vorname              TEXT,
-    nachname             TEXT,
+    veranstalter_id      UUID NOT NULL REFERENCES dataplatform.veranstalter(id),
+    betriebsstaette_id   UUID NOT NULL REFERENCES dataplatform.betriebsstaette(id),
+    geraete_id           UUID NOT NULL REFERENCES dataplatform.geraet(id),
+    player_id            UUID NOT NULL REFERENCES dataplatform.player(id),
+    vorname              TEXT NOT NULL,
+    nachname             TEXT NOT NULL,
     geburtsdatum         DATE
 );
 
@@ -31,7 +66,7 @@ CREATE TABLE IF NOT EXISTS dataplatform.status_abfrage (
 ALTER SYSTEM SET wal_level = logical;
 SELECT pg_reload_conf();
 
--- 5) Create a Publication for the status_abfrage table
+-- 5) Create a Publication for the data platform tables
 --    Debezium will use this for CDC
 DO $$
 BEGIN
@@ -39,7 +74,20 @@ BEGIN
         SELECT 1 FROM pg_publication WHERE pubname = 'dp_status_pub'
     ) THEN
         CREATE PUBLICATION dp_status_pub
-             FOR TABLE dataplatform.status_abfrage;
+             FOR TABLE dataplatform.status_abfrage,
+                      dataplatform.veranstalter,
+                      dataplatform.betriebsstaette,
+                      dataplatform.geraet,
+                      dataplatform.device_assignment,
+                      dataplatform.player;
+    ELSE
+        ALTER PUBLICATION dp_status_pub SET TABLE
+                      dataplatform.status_abfrage,
+                      dataplatform.veranstalter,
+                      dataplatform.betriebsstaette,
+                      dataplatform.geraet,
+                      dataplatform.device_assignment,
+                      dataplatform.player;
     END IF;
 END
 $$;

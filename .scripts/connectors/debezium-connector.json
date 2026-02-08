@@ -11,7 +11,7 @@
     "database.server.name": "dataplatform",
     "topic.prefix": "dataplatform",
     "schema.include.list": "dataplatform",
-    "table.include.list": "dataplatform.status_abfrage",
+    "table.include.list": "dataplatform.status_abfrage,dataplatform.veranstalter,dataplatform.betriebsstaette,dataplatform.geraet,dataplatform.device_assignment,dataplatform.player",
     "plugin.name": "pgoutput",
     "snapshot.mode": "initial",
     "publication.autocreate.mode": "filtered"

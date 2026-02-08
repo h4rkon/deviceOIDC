@@ -5,3 +5,8 @@ sources:
     schema: dataplatform
     tables:
       - name: status_abfrage
+      - name: veranstalter
+      - name: betriebsstaette
+      - name: geraet
+      - name: device_assignment
+      - name: player

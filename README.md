@@ -441,6 +441,8 @@ Everything else will be added step by step.
 We use the existing PostgreSQL instance from the OIDC demo to host
 our data platform tables. These are maintained in a dedicated schema
 (`dataplatform`) to avoid interference with the Keycloak operational data.
+The schema includes lookup tables (veranstalter, betriebsstaette, geraet,
+player, device_assignment) and the fact table `status_abfrage`.
 
 To initialize the database, execute:
 
@@ -456,12 +458,16 @@ psql \
 ### State service (status generator)
 
 The `state` service simulates status probes by inserting rows into
-`dataplatform.status_abfrage` on a fixed interval.
+`dataplatform.status_abfrage` on a fixed interval. It also seeds
+lookup tables for veranstalter, betriebsstaetten, geraete, players,
+and device assignments.
 
 Behavior:
+* Seeds lookup tables from `services/state/*.js` on startup (idempotent)
 * Picks a random player from `services/state/players.js`
-* Picks a random device (with veranstalter + betriebsstaette) from `services/state/devices.js`
+* Picks a random active device assignment from `services/state/device_assignments.js`
 * Inserts a row every 10 seconds
+* Occasionally reassigns a device to a new betriebsstaette to simulate resale
 
 Notes:
 * Connection is configured via `POSTGRES_*` env vars in `manifests/state/deployment.yaml`
@@ -541,7 +547,7 @@ kubectl -n kafka exec deploy/connect -- sh -lc \
     \"database.server.name\": \"dataplatform\",
     \"topic.prefix\": \"dataplatform\",
     \"schema.include.list\": \"dataplatform\",
-    \"table.include.list\": \"dataplatform.status_abfrage\",
+    \"table.include.list\": \"dataplatform.status_abfrage,dataplatform.veranstalter,dataplatform.betriebsstaette,dataplatform.geraet,dataplatform.device_assignment,dataplatform.player\",
     \"plugin.name\": \"pgoutput\",
     \"snapshot.mode\": \"initial\",
     \"publication.autocreate.mode\": \"filtered\"
@@ -572,7 +578,7 @@ kubectl -n kafka exec redpanda-0 -- sh -lc \
 ```
 
 Notes:
-* Topic naming is `<topic.prefix>.<schema>.<table>` (here: `dataplatform.dataplatform.status_abfrage`)
+* Topic naming is `<topic.prefix>.<schema>.<table>` (for example: `dataplatform.dataplatform.status_abfrage`)
 * `snapshot.mode=initial` emits a one-time snapshot (`op: r`) followed by live changes (`op: c/u/d`)
 
 ### Iceberg sink (Redpanda -> MinIO)
@@ -599,7 +605,7 @@ kubectl -n kafka exec deploy/iceberg-connect -- sh -lc \
   \"config\": {
     \"connector.class\": \"io.tabular.iceberg.connect.IcebergSinkConnector\",
     \"tasks.max\": \"1\",
-    \"topics\": \"dataplatform.dataplatform.status_abfrage\",
+    \"topics\": \"dataplatform.dataplatform.status_abfrage,dataplatform.dataplatform.veranstalter,dataplatform.dataplatform.betriebsstaette,dataplatform.dataplatform.geraet,dataplatform.dataplatform.device_assignment,dataplatform.dataplatform.player\",
     \"iceberg.catalog.type\": \"nessie\",
     \"iceberg.catalog.uri\": \"http://nessie.nessie.svc.cluster.local:19120/api/v1\",
     \"iceberg.catalog.ref\": \"main\",
@@ -613,7 +619,7 @@ kubectl -n kafka exec deploy/iceberg-connect -- sh -lc \
     \"iceberg.catalog.hadoop.fs.s3a.aws.credentials.provider\": \"org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\",
     \"iceberg.catalog.hadoop.fs.s3a.endpoint.region\": \"us-east-1\",
     \"iceberg.catalog.hadoop.fs.s3a.region\": \"us-east-1\",
-    \"iceberg.tables\": \"dataplatform.status_abfrage\",
+    \"iceberg.tables\": \"dataplatform.status_abfrage,dataplatform.veranstalter,dataplatform.betriebsstaette,dataplatform.geraet,dataplatform.device_assignment,dataplatform.player\",
     \"iceberg.tables.auto-create-enabled\": \"true\",
     \"iceberg.tables.auto-create-props.write.format.default\": \"parquet\"
   }
@@ -699,8 +705,15 @@ SELECT * FROM iceberg.silver.status_abfrage LIMIT 5;
 
 ### dbt (silver layer)
 
-The `dbt/` folder contains a minimal dbt project that flattens the CDC
-envelope into a silver table (`dbt/models/silver/status_abfrage.sql`).
+The `dbt/` folder contains a minimal dbt project that flattens CDC
+envelopes into silver tables.
+Silver models:
+* `dbt/models/silver/status_abfrage.sql`
+* `dbt/models/silver/veranstalter.sql`
+* `dbt/models/silver/betriebsstaette.sql`
+* `dbt/models/silver/geraet.sql`
+* `dbt/models/silver/device_assignment.sql`
+* `dbt/models/silver/player.sql`
 The model is incremental (merge on `unique_identifier`) and only processes
 rows newer than the latest `cdc_ts_ms` in the silver table. Use a full refresh
 when you want a complete rebuild.

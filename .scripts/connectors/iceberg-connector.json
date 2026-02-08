@@ -3,7 +3,7 @@
   "config": {
     "connector.class": "io.tabular.iceberg.connect.IcebergSinkConnector",
     "tasks.max": "1",
-    "topics": "dataplatform.dataplatform.status_abfrage",
+    "topics": "dataplatform.dataplatform.status_abfrage,dataplatform.dataplatform.veranstalter,dataplatform.dataplatform.betriebsstaette,dataplatform.dataplatform.geraet,dataplatform.dataplatform.device_assignment,dataplatform.dataplatform.player",
     "iceberg.catalog.type": "nessie",
     "iceberg.catalog.uri": "http://nessie.nessie.svc.cluster.local:19120/api/v1",
     "iceberg.catalog.ref": "main",
@@ -25,7 +25,7 @@
     "iceberg.hadoop.fs.s3a.aws.credentials.provider": "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
     "iceberg.hadoop.fs.s3a.endpoint.region": "us-east-1",
     "iceberg.hadoop.fs.s3a.region": "us-east-1",
-    "iceberg.tables": "dataplatform.status_abfrage",
+    "iceberg.tables": "dataplatform.status_abfrage,dataplatform.veranstalter,dataplatform.betriebsstaette,dataplatform.geraet,dataplatform.device_assignment,dataplatform.player",
     "iceberg.tables.auto-create-enabled": "true",
     "iceberg.tables.auto-create-props.write.format.default": "parquet"
   }
