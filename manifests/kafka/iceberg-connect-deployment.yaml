@@ -13,6 +13,8 @@ spec:
       labels:
         app: iceberg-connect
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull
       containers:
       - name: connect
         image: ghcr.io/tabulario/iceberg-kafka-connect:0.6.0
