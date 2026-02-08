@@ -657,14 +657,14 @@ curl -sS -H 'X-Trino-User: admin' -X POST --data 'CREATE SCHEMA IF NOT EXISTS ic
 Port-forward Marquez (API + UI):
 
 ```bash
-kubectl -n marquez port-forward svc/marquez 5000:5000
+kubectl -n marquez port-forward svc/marquez 5005:5000
 kubectl -n marquez port-forward svc/marquez-web 3000:3000
 ```
 
 Notes:
 * Trino is configured to use Nessie via `manifests/trino/catalog-iceberg.yaml`.
 * The Iceberg sink uses Nessie when created from `.scripts/connectors/iceberg-connector.json`.
-* For dbt lineage, install `dbt-openlineage` and set `OPENLINEAGE_URL=http://localhost:5000`.
+* For dbt lineage, install `openlineage-dbt` (provides `dbt-ol`) and set `OPENLINEAGE_URL=http://localhost:5005`.
 
 ### Trino (SQL on Iceberg)
 
@@ -693,7 +693,11 @@ envelope into a silver table (`dbt/models/silver/status_abfrage.sql`).
 Quick start (local dbt-trino):
 
 ```bash
-pip install dbt-trino
-cp dbt/profiles.yml.example ~/.dbt/profiles.yml
-dbt --project-dir dbt run
+pip install dbt-trino openlineage-dbt
+cp dbt/profiles.yml.example dbt/profiles.yml
+DBT_PROFILES_DIR=dbt dbt --project-dir dbt run
+
+# With OpenLineage -> Marquez
+OPENLINEAGE_URL=http://localhost:5005 OPENLINEAGE_NAMESPACE=dataplatform \
+  DBT_PROFILES_DIR=dbt dbt-ol run --project-dir dbt
 ```

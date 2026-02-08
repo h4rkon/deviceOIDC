@@ -11,7 +11,7 @@ GRFN_PORT ?= 3000
 POST_PORT ?= 5432
 TRINO_PORT ?= 8084
 NESSIE_PORT ?= 19120
-MARQUEZ_PORT ?= 5000
+MARQUEZ_PORT ?= 5005
 MARQUEZ_UI_PORT ?= 3001
 
 KC_PASS ?= swordfish
@@ -38,7 +38,7 @@ help:
 	@echo "  POST_PORT=5432        Local port forwarded to Postgres svc:5432"
 	@echo "  TRINO_PORT=8084       Local port forwarded to Trino svc:8080"
 	@echo "  NESSIE_PORT=19120     Local port forwarded to Nessie svc:19120"
-	@echo "  MARQUEZ_PORT=5000     Local port forwarded to Marquez API svc:5000"
+	@echo "  MARQUEZ_PORT=5005     Local port forwarded to Marquez API svc:5000"
 	@echo "  MARQUEZ_UI_PORT=3001  Local port forwarded to Marquez UI svc:3000"
 	@echo ""
 
