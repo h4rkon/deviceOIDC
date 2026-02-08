@@ -58,6 +58,8 @@ spec:
             value: "/var/lib/kafka/data"
           - name: KAFKA_LOG4J_ROOT_LOGLEVEL
             value: "INFO"
+          - name: KAFKA_HEAP_OPTS
+            value: "-Xms256m -Xmx256m"
         volumeMounts:
           - name: data
             mountPath: /var/lib/kafka/data
