@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: connect
-        image: tabulario/iceberg-kafka-connect:0.6.0
+        image: ghcr.io/tabulario/iceberg-kafka-connect:0.6.0
         ports:
           - containerPort: 8083
         env:
