@@ -451,3 +451,18 @@ psql \
   -U keycloak \
   -d keycloak \
   -f .scripts/dataplatform_init.sql
+```
+
+### State service (status generator)
+
+The `state` service simulates status probes by inserting rows into
+`dataplatform.status_abfrage` on a fixed interval.
+
+Behavior:
+* Picks a random player from `services/state/players.js`
+* Picks a random device (with veranstalter + betriebsstaette) from `services/state/devices.js`
+* Inserts a row every 10 seconds
+
+Notes:
+* Connection is configured via `POSTGRES_*` env vars in `manifests/state/deployment.yaml`
+* Data lives in the `dataplatform` schema inside the shared Postgres instance
