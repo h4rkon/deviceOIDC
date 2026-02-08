@@ -499,3 +499,12 @@ Manifests live in `manifests/kafka`.
 Services:
 * Broker bootstrap: `redpanda.kafka.svc.cluster.local:9092`
 * Connect REST: `connect.kafka.svc.cluster.local:8083`
+
+Sanity check (in-cluster pub/sub):
+
+```bash
+kubectl -n kafka exec redpanda-0 -- sh -lc "rpk topic create sanity -X brokers=redpanda.kafka.svc.cluster.local:9092"
+kubectl -n kafka exec redpanda-0 -- sh -lc "echo hello | rpk topic produce sanity -X brokers=redpanda.kafka.svc.cluster.local:9092"
+kubectl -n kafka exec redpanda-0 -- sh -lc "rpk topic consume sanity -n 1 -X brokers=redpanda.kafka.svc.cluster.local:9092"
+kubectl -n kafka exec redpanda-0 -- sh -lc "rpk topic delete sanity -X brokers=redpanda.kafka.svc.cluster.local:9092"
+```
