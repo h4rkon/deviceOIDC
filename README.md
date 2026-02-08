@@ -563,3 +563,48 @@ kubectl -n kafka exec redpanda-0 -- sh -lc \
 Notes:
 * Topic naming is `<topic.prefix>.<schema>.<table>` (here: `dataplatform.dataplatform.status_abfrage`)
 * `snapshot.mode=initial` emits a one-time snapshot (`op: r`) followed by live changes (`op: c/u/d`)
+
+### Iceberg sink (Redpanda -> MinIO)
+
+Create the MinIO bucket (one-time):
+
+```bash
+kubectl -n minio apply -f manifests/minio/warehouse-job.yaml
+```
+
+Iceberg sink runs in a dedicated Kafka Connect deployment:
+* Connect REST: `iceberg-connect.kafka.svc.cluster.local:8083`
+
+Create the Iceberg sink connector:
+
+```bash
+kubectl -n kafka exec deploy/iceberg-connect -- sh -lc \
+  "cat <<'JSON' | curl -sS -X POST -H 'Content-Type: application/json' \
+  --data-binary @- http://localhost:8083/connectors
+{
+  \"name\": \"iceberg-sink\",
+  \"config\": {
+    \"connector.class\": \"io.tabular.iceberg.connect.IcebergSinkConnector\",
+    \"tasks.max\": \"1\",
+    \"topics\": \"dataplatform.dataplatform.status_abfrage\",
+    \"iceberg.catalog.type\": \"hadoop\",
+    \"iceberg.catalog.warehouse\": \"s3a://warehouse/\",
+    \"iceberg.catalog.io-impl\": \"org.apache.iceberg.aws.s3.S3FileIO\",
+    \"iceberg.catalog.s3.endpoint\": \"http://minio.minio.svc.cluster.local:9000\",
+    \"iceberg.catalog.s3.path-style-access\": \"true\",
+    \"iceberg.catalog.s3.access-key-id\": \"minioadmin\",
+    \"iceberg.catalog.s3.secret-access-key\": \"minioadmin\",
+    \"iceberg.tables\": \"dataplatform.status_abfrage\",
+    \"iceberg.tables.auto-create-enabled\": \"true\",
+    \"iceberg.tables.auto-create-props.write.format.default\": \"parquet\"
+  }
+}
+JSON"
+```
+
+Check sink status:
+
+```bash
+kubectl -n kafka exec deploy/iceberg-connect -- sh -lc \
+  "curl -sS http://localhost:8083/connectors/iceberg-sink/status"
+```

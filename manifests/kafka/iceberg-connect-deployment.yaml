@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iceberg-connect
+  namespace: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iceberg-connect
+  template:
+    metadata:
+      labels:
+        app: iceberg-connect
+    spec:
+      containers:
+      - name: connect
+        image: tabulario/iceberg-kafka-connect:0.6.0
+        ports:
+          - containerPort: 8083
+        env:
+          - name: BOOTSTRAP_SERVERS
+            value: "redpanda.kafka.svc.cluster.local:9092"
+          - name: GROUP_ID
+            value: "iceberg-connect"
+          - name: CONFIG_STORAGE_TOPIC
+            value: "iceberg-connect-configs"
+          - name: OFFSET_STORAGE_TOPIC
+            value: "iceberg-connect-offsets"
+          - name: STATUS_STORAGE_TOPIC
+            value: "iceberg-connect-status"
+          - name: CONFIG_STORAGE_REPLICATION_FACTOR
+            value: "1"
+          - name: OFFSET_STORAGE_REPLICATION_FACTOR
+            value: "1"
+          - name: STATUS_STORAGE_REPLICATION_FACTOR
+            value: "1"
+          - name: KEY_CONVERTER
+            value: "org.apache.kafka.connect.json.JsonConverter"
+          - name: VALUE_CONVERTER
+            value: "org.apache.kafka.connect.json.JsonConverter"
+          - name: KEY_CONVERTER_SCHEMAS_ENABLE
+            value: "false"
+          - name: VALUE_CONVERTER_SCHEMAS_ENABLE
+            value: "false"
+          - name: REST_ADVERTISED_HOST_NAME
+            value: "iceberg-connect"
+          - name: REST_PORT
+            value: "8083"
+          - name: LOG_LEVEL
+            value: "INFO"
