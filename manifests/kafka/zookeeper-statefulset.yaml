@@ -16,12 +16,14 @@ spec:
     spec:
       containers:
       - name: zookeeper
-        image: bitnami/zookeeper:latest
+        image: confluentinc/cp-zookeeper:7.5.3
         ports:
           - containerPort: 2181
         env:
-          - name: ALLOW_ANONYMOUS_LOGIN
-            value: "yes"
+          - name: ZOOKEEPER_CLIENT_PORT
+            value: "2181"
+          - name: ZOOKEEPER_TICK_TIME
+            value: "2000"
         volumeMounts:
           - name: data
             mountPath: /bitnami/zookeeper
