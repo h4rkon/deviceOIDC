@@ -10,6 +10,9 @@ CLOAK_PORT ?= 8082
 GRFN_PORT ?= 3000
 POST_PORT ?= 5432
 TRINO_PORT ?= 8084
+NESSIE_PORT ?= 19120
+MARQUEZ_PORT ?= 5000
+MARQUEZ_UI_PORT ?= 3001
 
 KC_PASS ?= swordfish
 
@@ -34,6 +37,9 @@ help:
 	@echo "  GRFN_PORT=3000        Local port forwarded to Grafana svc:3000"
 	@echo "  POST_PORT=5432        Local port forwarded to Postgres svc:5432"
 	@echo "  TRINO_PORT=8084       Local port forwarded to Trino svc:8080"
+	@echo "  NESSIE_PORT=19120     Local port forwarded to Nessie svc:19120"
+	@echo "  MARQUEZ_PORT=5000     Local port forwarded to Marquez API svc:5000"
+	@echo "  MARQUEZ_UI_PORT=3001  Local port forwarded to Marquez UI svc:3000"
 	@echo ""
 
 .PHONY: check
@@ -48,7 +54,7 @@ $(PIDDIR):
 
 .PHONY: pf-start
 pf-start: $(PIDDIR)
-	@echo ">> Starting port-forwards (ingress-nginx -> :$(EDGE_PORT), argocd -> :$(ARGO_PORT), Keycloak -> :$(CLOAK_PORT), Grafana -> :$(GRFN_PORT), PostgreSQL -> :$(POST_PORT), Trino -> :$(TRINO_PORT))"
+	@echo ">> Starting port-forwards (ingress-nginx -> :$(EDGE_PORT), argocd -> :$(ARGO_PORT), Keycloak -> :$(CLOAK_PORT), Grafana -> :$(GRFN_PORT), PostgreSQL -> :$(POST_PORT), Trino -> :$(TRINO_PORT), Nessie -> :$(NESSIE_PORT), Marquez API -> :$(MARQUEZ_PORT), Marquez UI -> :$(MARQUEZ_UI_PORT))"
 	@# ingress-nginx
 	@bash -c ' \
 	  if lsof -nP -iTCP:$(EDGE_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
@@ -97,12 +103,36 @@ pf-start: $(PIDDIR)
 	    (kubectl -n trino port-forward svc/trino $(TRINO_PORT):8080 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-trino.pid); \
 	    echo "   started Trino port-forward (pid $$(cat $(PIDDIR)/pf-trino.pid))"; \
 	  fi'
+	@# Nessie
+	@bash -c ' \
+	  if lsof -nP -iTCP:$(NESSIE_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
+	    echo "   Nessie  :$(NESSIE_PORT) already listening"; \
+	  else \
+	    (kubectl -n nessie port-forward svc/nessie $(NESSIE_PORT):19120 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-nessie.pid); \
+	    echo "   started Nessie port-forward (pid $$(cat $(PIDDIR)/pf-nessie.pid))"; \
+	  fi'
+	@# Marquez API
+	@bash -c ' \
+	  if lsof -nP -iTCP:$(MARQUEZ_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
+	    echo "   Marquez API  :$(MARQUEZ_PORT) already listening"; \
+	  else \
+	    (kubectl -n marquez port-forward svc/marquez $(MARQUEZ_PORT):5000 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-marquez.pid); \
+	    echo "   started Marquez API port-forward (pid $$(cat $(PIDDIR)/pf-marquez.pid))"; \
+	  fi'
+	@# Marquez UI
+	@bash -c ' \
+	  if lsof -nP -iTCP:$(MARQUEZ_UI_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
+	    echo "   Marquez UI  :$(MARQUEZ_UI_PORT) already listening"; \
+	  else \
+	    (kubectl -n marquez port-forward svc/marquez-web $(MARQUEZ_UI_PORT):3000 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-marquez-ui.pid); \
+	    echo "   started Marquez UI port-forward (pid $$(cat $(PIDDIR)/pf-marquez-ui.pid))"; \
+	  fi'
 
 .PHONY: pf-stop
 pf-stop:
 	@echo ">> Stopping port-forwards"
 	@bash -c ' \
-	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid $(PIDDIR)/pf-post.pid $(PIDDIR)/pf-trino.pid; do \
+	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid $(PIDDIR)/pf-post.pid $(PIDDIR)/pf-trino.pid $(PIDDIR)/pf-nessie.pid $(PIDDIR)/pf-marquez.pid $(PIDDIR)/pf-marquez-ui.pid; do \
 	    if [ -f $$f ]; then \
 	      pid=$$(cat $$f); \
 	      if kill -0 $$pid >/dev/null 2>&1; then \
@@ -119,9 +149,9 @@ pf-stop:
 .PHONY: pf-status
 pf-status:
 	@echo ">> Port-forward status"
-	@echo "   expected: ingress localhost:$(EDGE_PORT), argocd localhost:$(ARGO_PORT), Keycloak localhost:${CLOAK_PORT}, Grafana localhost:${GRFN_PORT}, PostgreSQL localhost:${POST_PORT}, Trino localhost:${TRINO_PORT}"
+	@echo "   expected: ingress localhost:$(EDGE_PORT), argocd localhost:$(ARGO_PORT), Keycloak localhost:${CLOAK_PORT}, Grafana localhost:${GRFN_PORT}, PostgreSQL localhost:${POST_PORT}, Trino localhost:${TRINO_PORT}, Nessie localhost:${NESSIE_PORT}, Marquez API localhost:${MARQUEZ_PORT}, Marquez UI localhost:${MARQUEZ_UI_PORT}"
 	@bash -c ' \
-	  for p in $(EDGE_PORT) $(ARGO_PORT) $(CLOAK_PORT) $(GRFN_PORT) $(POST_PORT) $(TRINO_PORT); do \
+	  for p in $(EDGE_PORT) $(ARGO_PORT) $(CLOAK_PORT) $(GRFN_PORT) $(POST_PORT) $(TRINO_PORT) $(NESSIE_PORT) $(MARQUEZ_PORT) $(MARQUEZ_UI_PORT); do \
 	    if lsof -nP -iTCP:$$p -sTCP:LISTEN >/dev/null 2>&1; then \
 	      echo "   port $$p: LISTENING"; \
 	    else \
@@ -129,7 +159,7 @@ pf-status:
 	    fi; \
 	  done'
 	@bash -c ' \
-	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid $(PIDDIR)/pf-post.pid $(PIDDIR)/pf-trino.pid; do \
+	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid $(PIDDIR)/pf-post.pid $(PIDDIR)/pf-trino.pid $(PIDDIR)/pf-nessie.pid $(PIDDIR)/pf-marquez.pid $(PIDDIR)/pf-marquez-ui.pid; do \
 	    if [ -f $$f ]; then echo "   $$(basename $$f): $$(cat $$f)"; else echo "   $$(basename $$f): <none>"; fi; \
 	  done'
 
