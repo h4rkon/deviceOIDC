@@ -467,6 +467,17 @@ Notes:
 * Connection is configured via `POSTGRES_*` env vars in `manifests/state/deployment.yaml`
 * Data lives in the `dataplatform` schema inside the shared Postgres instance
 
+### CDC pipeline overview
+
+```mermaid
+flowchart LR
+  State[State service] --> Postgres[(Postgres)]
+  Postgres --> Debezium[Debezium CDC]
+  Debezium --> Redpanda[Redpanda/Kafka]
+  Redpanda --> Iceberg[Iceberg sink]
+  Iceberg --> MinIO[(MinIO warehouse)]
+```
+
 ### Object storage (MinIO)
 
 MinIO provides the S3-compatible blob storage used later by Iceberg.
