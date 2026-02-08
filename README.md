@@ -597,20 +597,22 @@ kubectl -n kafka exec deploy/iceberg-connect -- sh -lc \
 {
   \"name\": \"iceberg-sink\",
   \"config\": {
-  \"connector.class\": \"io.tabular.iceberg.connect.IcebergSinkConnector\",
+    \"connector.class\": \"io.tabular.iceberg.connect.IcebergSinkConnector\",
     \"tasks.max\": \"1\",
     \"topics\": \"dataplatform.dataplatform.status_abfrage\",
-    \"iceberg.catalog.type\": \"hadoop\",
+    \"iceberg.catalog.type\": \"nessie\",
+    \"iceberg.catalog.uri\": \"http://nessie.nessie.svc.cluster.local:19120/api/v1\",
+    \"iceberg.catalog.ref\": \"main\",
     \"iceberg.catalog.warehouse\": \"s3a://warehouse/\",
-  \"iceberg.catalog.io-impl\": \"org.apache.iceberg.hadoop.HadoopFileIO\",
-  \"iceberg.catalog.hadoop.fs.s3a.endpoint\": \"http://minio.minio.svc.cluster.local:9000\",
-  \"iceberg.catalog.hadoop.fs.s3a.connection.ssl.enabled\": \"false\",
-  \"iceberg.catalog.hadoop.fs.s3a.path.style.access\": \"true\",
-  \"iceberg.catalog.hadoop.fs.s3a.access.key\": \"minioadmin\",
-  \"iceberg.catalog.hadoop.fs.s3a.secret.key\": \"minioadmin\",
-  \"iceberg.catalog.hadoop.fs.s3a.aws.credentials.provider\": \"org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\",
-  \"iceberg.catalog.hadoop.fs.s3a.endpoint.region\": \"us-east-1\",
-  \"iceberg.catalog.hadoop.fs.s3a.region\": \"us-east-1\",
+    \"iceberg.catalog.io-impl\": \"org.apache.iceberg.hadoop.HadoopFileIO\",
+    \"iceberg.catalog.hadoop.fs.s3a.endpoint\": \"http://minio.minio.svc.cluster.local:9000\",
+    \"iceberg.catalog.hadoop.fs.s3a.connection.ssl.enabled\": \"false\",
+    \"iceberg.catalog.hadoop.fs.s3a.path.style.access\": \"true\",
+    \"iceberg.catalog.hadoop.fs.s3a.access.key\": \"minioadmin\",
+    \"iceberg.catalog.hadoop.fs.s3a.secret.key\": \"minioadmin\",
+    \"iceberg.catalog.hadoop.fs.s3a.aws.credentials.provider\": \"org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider\",
+    \"iceberg.catalog.hadoop.fs.s3a.endpoint.region\": \"us-east-1\",
+    \"iceberg.catalog.hadoop.fs.s3a.region\": \"us-east-1\",
     \"iceberg.tables\": \"dataplatform.status_abfrage\",
     \"iceberg.tables.auto-create-enabled\": \"true\",
     \"iceberg.tables.auto-create-props.write.format.default\": \"parquet\"
@@ -625,6 +627,36 @@ Check sink status:
 kubectl -n kafka exec deploy/iceberg-connect -- sh -lc \
   "curl -sS http://localhost:8083/connectors/iceberg-sink/status"
 ```
+
+### Catalog + lineage (Nessie + Marquez)
+
+Nessie provides an Iceberg catalog with versioned metadata (branchable table history).
+Marquez stores OpenLineage events to visualize data lineage.
+
+Deploy:
+
+```bash
+kubectl apply -f apps/nessie-app.yaml
+kubectl apply -f apps/marquez-app.yaml
+```
+
+Port-forward Nessie:
+
+```bash
+kubectl -n nessie port-forward svc/nessie 19120:19120
+```
+
+Port-forward Marquez (API + UI):
+
+```bash
+kubectl -n marquez port-forward svc/marquez 5000:5000
+kubectl -n marquez port-forward svc/marquez-web 3000:3000
+```
+
+Notes:
+* Trino is configured to use Nessie via `manifests/trino/catalog-iceberg.yaml`.
+* The Iceberg sink uses Nessie when created from `.scripts/connectors/iceberg-connector.json`.
+* For dbt lineage, install `dbt-openlineage` and set `OPENLINEAGE_URL=http://localhost:5000`.
 
 ### Trino (SQL on Iceberg)
 

@@ -6,8 +6,10 @@ metadata:
 data:
   iceberg.properties: |
     connector.name=iceberg
-    iceberg.catalog.type=hadoop
-    iceberg.catalog.warehouse=s3a://warehouse/
+    iceberg.catalog.type=nessie
+    iceberg.nessie-catalog.uri=http://nessie.nessie.svc.cluster.local:19120/api/v1
+    iceberg.nessie-catalog.ref=main
+    iceberg.nessie-catalog.default-warehouse-dir=s3a://warehouse/
     hive.s3.endpoint=http://minio.minio.svc.cluster.local:9000
     hive.s3.aws-access-key=minioadmin
     hive.s3.aws-secret-key=minioadmin

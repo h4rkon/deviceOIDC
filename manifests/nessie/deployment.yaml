@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nessie
+  namespace: nessie
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nessie
+  template:
+    metadata:
+      labels:
+        app: nessie
+    spec:
+      containers:
+      - name: nessie
+        image: ghcr.io/projectnessie/nessie:latest
+        env:
+          - name: QUARKUS_HTTP_PORT
+            value: "19120"
+        ports:
+          - containerPort: 19120
+        readinessProbe:
+          httpGet:
+            path: /q/health/ready
+            port: 19120
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /q/health/live
+            port: 19120
+          initialDelaySeconds: 20
+          periodSeconds: 20

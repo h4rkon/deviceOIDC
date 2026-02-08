@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marquez-postgres
+  namespace: marquez
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: marquez-postgres
+  template:
+    metadata:
+      labels:
+        app: marquez-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15
+        envFrom:
+          - secretRef:
+              name: marquez-postgres-secret
+        ports:
+          - containerPort: 5432
+        volumeMounts:
+          - name: data
+            mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: marquez-postgres
+  namespace: marquez
+spec:
+  selector:
+    app: marquez-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

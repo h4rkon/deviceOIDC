@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marquez-web
+  namespace: marquez
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: marquez-web
+  template:
+    metadata:
+      labels:
+        app: marquez-web
+    spec:
+      containers:
+      - name: marquez-web
+        image: marquezproject/marquez-web:0.42.0
+        env:
+          - name: MARQUEZ_HOST
+            value: marquez
+          - name: MARQUEZ_PORT
+            value: "5000"
+        ports:
+          - containerPort: 3000
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 20
+          periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: marquez-web
+  namespace: marquez
+spec:
+  selector:
+    app: marquez-web
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
