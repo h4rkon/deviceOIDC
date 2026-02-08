@@ -14,6 +14,8 @@ spec:
       labels:
         app: kafka
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
       - name: kafka
         image: confluentinc/cp-kafka:7.5.3
@@ -44,6 +46,8 @@ spec:
             value: "0"
           - name: KAFKA_LOG_DIRS
             value: "/var/lib/kafka/data"
+          - name: KAFKA_LOG4J_ROOT_LOGLEVEL
+            value: "INFO"
         volumeMounts:
           - name: data
             mountPath: /var/lib/kafka/data
