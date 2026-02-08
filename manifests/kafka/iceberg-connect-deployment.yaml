@@ -23,6 +23,14 @@ spec:
             value: "redpanda.kafka.svc.cluster.local:9092"
           - name: GROUP_ID
             value: "iceberg-connect"
+          - name: AWS_ACCESS_KEY_ID
+            value: "minioadmin"
+          - name: AWS_SECRET_ACCESS_KEY
+            value: "minioadmin"
+          - name: AWS_REGION
+            value: "us-east-1"
+          - name: AWS_EC2_METADATA_DISABLED
+            value: "true"
           - name: CONFIG_STORAGE_TOPIC
             value: "iceberg-connect-configs"
           - name: OFFSET_STORAGE_TOPIC
