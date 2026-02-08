@@ -692,6 +692,8 @@ envelope into a silver table (`dbt/models/silver/status_abfrage.sql`).
 The model is incremental (merge on `unique_identifier`) and only processes
 rows newer than the latest `cdc_ts_ms` in the silver table. Use a full refresh
 when you want a complete rebuild.
+Note: Trino Iceberg + Nessie does not support views, so the model sets
+`views_enabled=false` to use temp tables during incremental merges.
 
 Quick start (local dbt-trino):
 

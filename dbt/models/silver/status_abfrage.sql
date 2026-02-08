@@ -1,7 +1,8 @@
 {{ config(
   materialized='incremental',
   incremental_strategy='merge',
-  unique_key='unique_identifier'
+  unique_key='unique_identifier',
+  views_enabled=false
 ) }}
 
 with cdc as (
