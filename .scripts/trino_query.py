@@ -32,19 +32,23 @@ def trino_get(uri: str) -> dict[str, Any]:
         return json.load(resp)
 
 
-def run_query(sql: str) -> tuple[list[dict[str, Any]] | None, list[list[Any]]]:
+def run_query(sql: str) -> tuple[list[dict[str, Any]] | None, list[list[Any]], dict[str, Any]]:
     payload = trino_post(sql)
     columns = payload.get("columns")
     rows = payload.get("data", []) or []
     next_uri = payload.get("nextUri")
+    last_payload = payload
 
     while next_uri:
         payload = trino_get(next_uri)
+        last_payload = payload
+        if "error" in payload:
+            break
         columns = columns or payload.get("columns")
         rows.extend(payload.get("data", []) or [])
         next_uri = payload.get("nextUri")
 
-    return columns, rows
+    return columns, rows, last_payload
 
 
 def main() -> int:
@@ -59,9 +63,14 @@ def main() -> int:
             return 0
 
         try:
-            columns, rows = run_query(sql)
+            columns, rows, last_payload = run_query(sql)
         except Exception as exc:
             print(f"Error: {exc}")
+            continue
+
+        if "error" in last_payload:
+            print("ERROR:")
+            print(json.dumps(last_payload.get("error"), indent=2))
             continue
 
         if columns:
