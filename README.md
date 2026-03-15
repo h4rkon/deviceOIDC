@@ -147,6 +147,8 @@ make pf-stop   # stops port forwarding
 | ArgoCD    | [http://argoargocd.local:8080](http://argocd.local:8080) |
 | Keycloak  | [http://keycloak.local:8082/admin](http://keycloak.local:8082/admin) |
 | Grafana   | [http://grafana.local:3000](http://grafana.local:3000) |
+| MinIO S3  | [http://localhost:9000](http://localhost:9000) |
+| MinIO UI  | [http://localhost:9001](http://localhost:9001) |
 
 ---
 

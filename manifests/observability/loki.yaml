@@ -12,6 +12,7 @@ data:
 
     common:
       path_prefix: /var/loki
+      replication_factor: 1
       storage:
         filesystem:
           chunks_directory: /var/loki/chunks
