@@ -148,6 +148,60 @@ make pf-stop   # stops port forwarding
 | Keycloak  | [http://keycloak.local:8082/admin](http://keycloak.local:8082/admin) |
 | Grafana   | [http://grafana.local:3000](http://grafana.local:3000) |
 
+---
+
+## Dataplatform UI Map (clickable)
+
+The diagram links to the local UIs. It also shows the flow from source DB
+through CDC, streaming, Iceberg, and query/lineage layers.
+
+```mermaid
+flowchart LR
+  %% =========================
+  %% UIs (clickable)
+  %% =========================
+  UI_POSTGRES["Postgres (psql)\nlocalhost:5432"]
+  UI_MINIO["MinIO Console\nhttp://localhost:9001"]
+  UI_TRINO["Trino UI\nhttp://localhost:8084/ui"]
+  UI_NESSIE["Nessie API\nhttp://localhost:19120/api/v1"]
+  UI_MARQUEZ["Marquez UI\nhttp://localhost:3001"]
+  UI_GRAFANA["Grafana\nhttp://localhost:3000"]
+  UI_ARGO["ArgoCD\nhttp://localhost:8080"]
+
+  click UI_MINIO "http://localhost:9001" "MinIO Console"
+  click UI_TRINO "http://localhost:8084/ui" "Trino UI"
+  click UI_NESSIE "http://localhost:19120/api/v1" "Nessie API"
+  click UI_MARQUEZ "http://localhost:3001" "Marquez UI"
+  click UI_GRAFANA "http://localhost:3000" "Grafana"
+  click UI_ARGO "http://localhost:8080" "ArgoCD"
+
+  %% =========================
+  %% Data Flow
+  %% =========================
+  STATE["State service\n(status generator)"]
+  PG[(Postgres\nschema: dataplatform)]
+  DBZ["Debezium\n(Kafka Connect)"]
+  RP["Redpanda / Kafka"]
+  ICEBERG["Iceberg Sink\n(Kafka Connect)"]
+  NESSIE["Nessie\ncatalog"]
+  MINIO["MinIO\nS3 warehouse"]
+  TRINO["Trino\nSQL on Iceberg"]
+  DBT["dbt (local)\nSilver/Gold models"]
+  MARQUEZ["Marquez\nLineage"]
+
+  STATE --> PG --> DBZ --> RP --> ICEBERG --> MINIO
+  ICEBERG --> NESSIE
+  NESSIE --> TRINO
+  DBT --> TRINO
+  DBT --> MARQUEZ
+  TRINO --> UI_TRINO
+  NESSIE --> UI_NESSIE
+  MINIO --> UI_MINIO
+  MARQUEZ --> UI_MARQUEZ
+  UI_GRAFANA --- RP
+  UI_ARGO --- STATE
+```
+
 In /etc/hosts, the *.local hostnames are pointing to loopback 127.0.0.1. Routing to backends is done via the Host header.
 
 ### Keycloak Access Model (UI vs OIDC)
