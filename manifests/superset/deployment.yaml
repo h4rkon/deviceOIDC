@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superset
+  namespace: superset
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset
+  template:
+    metadata:
+      labels:
+        app: superset
+    spec:
+      containers:
+        - name: superset
+          image: apache/superset:3.0.3
+          ports:
+            - containerPort: 8088
+          env:
+            - name: SUPERSET_ENV
+              value: "production"
+            - name: SUPERSET_LOAD_EXAMPLES
+              value: "no"
+            - name: SUPERSET_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: superset-secret
+                  key: SUPERSET_SECRET_KEY
+          command:
+            - /bin/sh
+            - -lc
+            - |
+              set -e
+              superset db upgrade
+              superset fab create-admin \
+                --username admin \
+                --firstname Admin \
+                --lastname User \
+                --email admin@example.com \
+                --password admin || true
+              superset init
+              exec superset run -h 0.0.0.0 -p 8088
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8088
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8088
+            initialDelaySeconds: 20
+            periodSeconds: 10

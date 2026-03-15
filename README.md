@@ -149,6 +149,7 @@ make pf-stop   # stops port forwarding
 | Grafana   | [http://grafana.local:3000](http://grafana.local:3000) |
 | MinIO S3  | [http://localhost:9000](http://localhost:9000) |
 | MinIO UI  | [http://localhost:9001](http://localhost:9001) |
+| Superset  | [http://localhost:8088](http://localhost:8088) |
 
 ---
 
@@ -743,6 +744,23 @@ LIMIT 5;
 * http://localhost:9001
 * Bucket: `warehouse/`
 * You will see table folders like `dataplatform/status_abfrage_...`
+
+### Superset (BI)
+
+Superset provides a simple SQL editor and dashboards.
+
+* URL: http://localhost:8088
+* Login: `admin` / `admin`
+
+Connect Superset to Trino:
+1. In Superset, go to **Settings → Database Connections → + Database**.
+2. Choose **Trino**.
+3. Use:
+   * Host: `trino.trino.svc.cluster.local`
+   * Port: `8080`
+   * Catalog: `iceberg`
+   * Schema: `silver`
+   * User: `admin`
 
 Deploy:
 

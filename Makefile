@@ -15,6 +15,7 @@ MARQUEZ_PORT ?= 5005
 MARQUEZ_UI_PORT ?= 3001
 MINIO_PORT ?= 9000
 MINIO_CONSOLE_PORT ?= 9001
+SUPERSET_PORT ?= 8088
 
 KC_PASS ?= swordfish
 
@@ -57,6 +58,7 @@ help:
 	@echo "  MARQUEZ_UI_PORT=3001  Local port forwarded to Marquez UI svc:3000"
 	@echo "  MINIO_PORT=9000       Local port forwarded to MinIO S3 svc:9000"
 	@echo "  MINIO_CONSOLE_PORT=9001  Local port forwarded to MinIO Console svc:9001"
+	@echo "  SUPERSET_PORT=8088    Local port forwarded to Superset svc:8088"
 	@echo "  DBT_INTERVAL=60       Seconds between dbt runs (dbt-loop)"
 	@echo "  OPENLINEAGE_URL=http://localhost:5005  OpenLineage endpoint"
 	@echo ""
@@ -98,7 +100,7 @@ $(PIDDIR):
 
 .PHONY: pf-start
 pf-start: $(PIDDIR)
-	@echo ">> Starting port-forwards (ingress-nginx -> :$(EDGE_PORT), argocd -> :$(ARGO_PORT), Keycloak -> :$(CLOAK_PORT), Grafana -> :$(GRFN_PORT), PostgreSQL -> :$(POST_PORT), Trino -> :$(TRINO_PORT), Nessie -> :$(NESSIE_PORT), Marquez API -> :$(MARQUEZ_PORT), Marquez UI -> :$(MARQUEZ_UI_PORT), MinIO S3 -> :$(MINIO_PORT), MinIO Console -> :$(MINIO_CONSOLE_PORT))"
+	@echo ">> Starting port-forwards (ingress-nginx -> :$(EDGE_PORT), argocd -> :$(ARGO_PORT), Keycloak -> :$(CLOAK_PORT), Grafana -> :$(GRFN_PORT), PostgreSQL -> :$(POST_PORT), Trino -> :$(TRINO_PORT), Nessie -> :$(NESSIE_PORT), Marquez API -> :$(MARQUEZ_PORT), Marquez UI -> :$(MARQUEZ_UI_PORT), MinIO S3 -> :$(MINIO_PORT), MinIO Console -> :$(MINIO_CONSOLE_PORT), Superset -> :$(SUPERSET_PORT))"
 	@# ingress-nginx
 	@bash -c ' \
 	  if lsof -nP -iTCP:$(EDGE_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
@@ -179,6 +181,14 @@ pf-start: $(PIDDIR)
 	    (kubectl -n minio port-forward svc/minio $(MINIO_PORT):9000 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-minio.pid); \
 	    echo "   started MinIO S3 port-forward (pid $$(cat $(PIDDIR)/pf-minio.pid))"; \
 	  fi'
+	@# Superset
+	@bash -c ' \
+	  if lsof -nP -iTCP:$(SUPERSET_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
+	    echo "   Superset  :$(SUPERSET_PORT) already listening"; \
+	  else \
+	    (kubectl -n superset port-forward svc/superset $(SUPERSET_PORT):8088 >/dev/null 2>&1 & echo $$! > $(PIDDIR)/pf-superset.pid); \
+	    echo "   started Superset port-forward (pid $$(cat $(PIDDIR)/pf-superset.pid))"; \
+	  fi'
 	@bash -c ' \
 	  if lsof -nP -iTCP:$(MINIO_CONSOLE_PORT) -sTCP:LISTEN >/dev/null 2>&1; then \
 	    echo "   MinIO Console  :$(MINIO_CONSOLE_PORT) already listening"; \
@@ -191,7 +201,7 @@ pf-start: $(PIDDIR)
 pf-stop:
 	@echo ">> Stopping port-forwards"
 	@bash -c ' \
-	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid $(PIDDIR)/pf-post.pid $(PIDDIR)/pf-trino.pid $(PIDDIR)/pf-nessie.pid $(PIDDIR)/pf-marquez.pid $(PIDDIR)/pf-marquez-ui.pid $(PIDDIR)/pf-minio.pid $(PIDDIR)/pf-minio-console.pid; do \
+	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid $(PIDDIR)/pf-post.pid $(PIDDIR)/pf-trino.pid $(PIDDIR)/pf-nessie.pid $(PIDDIR)/pf-marquez.pid $(PIDDIR)/pf-marquez-ui.pid $(PIDDIR)/pf-minio.pid $(PIDDIR)/pf-minio-console.pid $(PIDDIR)/pf-superset.pid; do \
 	    if [ -f $$f ]; then \
 	      pid=$$(cat $$f); \
 	      if kill -0 $$pid >/dev/null 2>&1; then \
@@ -208,9 +218,9 @@ pf-stop:
 .PHONY: pf-status
 pf-status:
 	@echo ">> Port-forward status"
-	@echo "   expected: ingress localhost:$(EDGE_PORT), argocd localhost:$(ARGO_PORT), Keycloak localhost:${CLOAK_PORT}, Grafana localhost:${GRFN_PORT}, PostgreSQL localhost:${POST_PORT}, Trino localhost:${TRINO_PORT}, Nessie localhost:${NESSIE_PORT}, Marquez API localhost:${MARQUEZ_PORT}, Marquez UI localhost:${MARQUEZ_UI_PORT}, MinIO S3 localhost:${MINIO_PORT}, MinIO Console localhost:${MINIO_CONSOLE_PORT}"
+	@echo "   expected: ingress localhost:$(EDGE_PORT), argocd localhost:$(ARGO_PORT), Keycloak localhost:${CLOAK_PORT}, Grafana localhost:${GRFN_PORT}, PostgreSQL localhost:${POST_PORT}, Trino localhost:${TRINO_PORT}, Nessie localhost:${NESSIE_PORT}, Marquez API localhost:${MARQUEZ_PORT}, Marquez UI localhost:${MARQUEZ_UI_PORT}, MinIO S3 localhost:${MINIO_PORT}, MinIO Console localhost:${MINIO_CONSOLE_PORT}, Superset localhost:${SUPERSET_PORT}"
 	@bash -c ' \
-	  for p in $(EDGE_PORT) $(ARGO_PORT) $(CLOAK_PORT) $(GRFN_PORT) $(POST_PORT) $(TRINO_PORT) $(NESSIE_PORT) $(MARQUEZ_PORT) $(MARQUEZ_UI_PORT) $(MINIO_PORT) $(MINIO_CONSOLE_PORT); do \
+	  for p in $(EDGE_PORT) $(ARGO_PORT) $(CLOAK_PORT) $(GRFN_PORT) $(POST_PORT) $(TRINO_PORT) $(NESSIE_PORT) $(MARQUEZ_PORT) $(MARQUEZ_UI_PORT) $(MINIO_PORT) $(MINIO_CONSOLE_PORT) $(SUPERSET_PORT); do \
 	    if lsof -nP -iTCP:$$p -sTCP:LISTEN >/dev/null 2>&1; then \
 	      echo "   port $$p: LISTENING"; \
 	    else \
@@ -218,7 +228,7 @@ pf-status:
 	    fi; \
 	  done'
 	@bash -c ' \
-	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid $(PIDDIR)/pf-post.pid $(PIDDIR)/pf-trino.pid $(PIDDIR)/pf-nessie.pid $(PIDDIR)/pf-marquez.pid $(PIDDIR)/pf-marquez-ui.pid $(PIDDIR)/pf-minio.pid $(PIDDIR)/pf-minio-console.pid; do \
+	  for f in $(PIDDIR)/pf-ingress.pid $(PIDDIR)/pf-argocd.pid $(PIDDIR)/pf-cloak.pid $(PIDDIR)/pf-grfn.pid $(PIDDIR)/pf-post.pid $(PIDDIR)/pf-trino.pid $(PIDDIR)/pf-nessie.pid $(PIDDIR)/pf-marquez.pid $(PIDDIR)/pf-marquez-ui.pid $(PIDDIR)/pf-minio.pid $(PIDDIR)/pf-minio-console.pid $(PIDDIR)/pf-superset.pid; do \
 	    if [ -f $$f ]; then echo "   $$(basename $$f): $$(cat $$f)"; else echo "   $$(basename $$f): <none>"; fi; \
 	  done'
 
