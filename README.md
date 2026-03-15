@@ -493,6 +493,22 @@ Everything else will be added step by step.
 
 # Dataplatform on-premise demo
 
+### Resume checklist (after a stop)
+1. Start Colima (K8s):
+   - `colima start`
+2. Wait for core pods:
+   - `kubectl get pods -A` (repeat until mostly Running/Ready)
+3. Re-open port-forwards:
+   - `make pf-start`
+4. Quick health checks:
+   - ArgoCD UI: `http://localhost:8080`
+   - Grafana: `http://localhost:3000`
+   - Trino UI: `http://localhost:8084/ui`
+   - MinIO: `http://localhost:9001`
+   - Superset: `http://localhost:8088`
+5. If Superset can’t query Trino after restart, re-install Trino driver in the pod:
+   - `kubectl exec -n superset $(kubectl get pod -n superset -o jsonpath='{.items[0].metadata.name}') -- /bin/sh -lc "pip install -q sqlalchemy-trino trino"`
+
 ### 🧱 Initial Database Setup for Data Platform
 
 We use the existing PostgreSQL instance from the OIDC demo to host
