@@ -42,15 +42,22 @@ spec:
                 --password admin || true
               superset init
               exec superset run -h 0.0.0.0 -p 8088
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8088
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /health
               port: 8088
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /health
               port: 8088
-            initialDelaySeconds: 20
+            initialDelaySeconds: 30
             periodSeconds: 10
