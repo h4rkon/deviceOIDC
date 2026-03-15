@@ -637,6 +637,24 @@ Notes:
 * Topic naming is `<topic.prefix>.<schema>.<table>` (for example: `dataplatform.dataplatform.status_abfrage`)
 * `snapshot.mode=initial` emits a one-time snapshot (`op: r`) followed by live changes (`op: c/u/d`)
 
+### Grafana (Loki) – CDC visibility
+
+Grafana is wired to Loki. You can inspect Debezium + Iceberg activity via logs.
+
+Open Grafana:
+* http://localhost:3000
+
+Explore → Loki, then run queries like:
+
+```logql
+{namespace="kafka", app="connect"} |= "WorkerSourceTask"
+{namespace="kafka", app="connect"} |= "ERROR"
+{namespace="kafka", app="iceberg-connect"} |= "Successfully committed to table"
+{namespace="kafka", app="iceberg-connect"} |= "ERROR"
+```
+
+If you see no data, expand a log line and confirm the actual labels (namespace/app/pod).
+
 ### Iceberg sink (Redpanda -> MinIO)
 Note on "AWS" config: Iceberg uses Hadoop S3A to talk to S3-compatible storage. MinIO speaks S3, so the settings look like AWS (`fs.s3a.*`, access/secret keys, region), but they are just the S3 protocol knobs pointed at MinIO.
 
@@ -694,6 +712,37 @@ kubectl -n kafka exec deploy/iceberg-connect -- sh -lc \
 
 Nessie provides an Iceberg catalog with versioned metadata (branchable table history).
 Marquez stores OpenLineage events to visualize data lineage.
+
+### How the CDC pipeline is wired (answering “what goes where”)
+
+* Debezium reads Postgres WAL → publishes CDC events to Redpanda topics.
+* Iceberg sink (Kafka Connect) consumes those topics → writes Iceberg tables.
+* MinIO is the S3-compatible storage for Iceberg data + metadata.
+* Nessie is the Iceberg catalog (table metadata + versioned history).
+* Trino queries Iceberg tables through Nessie.
+
+### How to inspect Iceberg content (no native UI)
+
+There’s no dedicated Iceberg UI in this stack. Use:
+
+**Trino (recommended)**
+```sql
+SHOW SCHEMAS FROM iceberg;
+SHOW TABLES FROM iceberg.dataplatform;
+SELECT count(*) FROM iceberg.dataplatform.status_abfrage;
+SELECT after.vorname, after.nachname, after.status_ts
+FROM iceberg.dataplatform.status_abfrage
+LIMIT 5;
+```
+
+**Nessie API (catalog metadata)**
+* http://localhost:19120/api/v1/trees
+* http://localhost:19120/api/v1/trees/main/namespaces
+
+**MinIO Console (raw files)**
+* http://localhost:9001
+* Bucket: `warehouse/`
+* You will see table folders like `dataplatform/status_abfrage_...`
 
 Deploy:
 
@@ -776,6 +825,12 @@ when you want a complete rebuild.
 Note: Trino Iceberg + Nessie does not support views, so the model sets
 `views_enabled=false` to use temp tables during incremental merges.
 
+**What “silver” means here**
+Silver is a flattened clone of the original Postgres table, built from CDC:
+* CDC tables in Iceberg store `before/after/op` envelopes.
+* Silver extracts `after.*` into a clean, queryable table that mirrors the source schema.
+* Deletes can be handled by `op='d'` (depending on the model).
+
 Quick start (local dbt-trino):
 
 ```bash
@@ -833,4 +888,51 @@ Sample Trino queries:
 ```sql
 SELECT * FROM iceberg.gold.veranstalter_query_counts ORDER BY query_count DESC;
 SELECT * FROM iceberg.gold.veranstalter_device_overview ORDER BY veranstalter_id, betriebsstaette_id, geraete_id;
+```
+
+### End-to-end demo status (CDC → Bronze → Silver → Gold)
+
+At this point the pipeline is complete:
+* Postgres → Debezium snapshot + CDC → Redpanda topics → Iceberg (bronze)
+* dbt reads bronze CDC envelopes → writes silver (flattened clone)
+* dbt builds gold aggregates
+
+Example full refresh run (local):
+
+```bash
+DBT_PROFILES_DIR=dbt dbt --project-dir dbt run --full-refresh
+```
+
+Example results (from a successful run):
+* `silver.status_abfrage`: 47,610 rows
+* `silver.device_assignment`: 4,793 rows
+* `silver.player`: 20 rows
+* `silver.geraet`: 10 rows
+* `silver.betriebsstaette`: 10 rows
+* `silver.veranstalter`: 4 rows
+* `gold.veranstalter_device_overview`: 100 rows
+* `gold.veranstalter_query_counts`: 4 rows
+
+Verify in Trino:
+
+```sql
+SELECT count(*) FROM iceberg.silver.status_abfrage;
+SELECT * FROM iceberg.silver.status_abfrage LIMIT 5;
+SELECT * FROM iceberg.gold.veranstalter_query_counts;
+```
+
+### How to verify bronze (CDC) and silver data
+
+**Bronze (raw CDC in Iceberg)**
+```sql
+SELECT after.unique_identifier, after.vorname, after.nachname, after.status_ts
+FROM iceberg.dataplatform.status_abfrage
+LIMIT 5;
+```
+
+**Silver (flattened clone)**
+```sql
+SELECT unique_identifier, vorname, nachname, status_ts
+FROM iceberg.silver.status_abfrage
+LIMIT 5;
 ```
