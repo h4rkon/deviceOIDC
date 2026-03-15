@@ -33,6 +33,7 @@ spec:
             - -lc
             - |
               set -e
+              pip install -q sqlalchemy-trino trino
               superset db upgrade
               superset fab create-admin \
                 --username admin \
@@ -46,18 +47,18 @@ spec:
             httpGet:
               path: /health
               port: 8088
-            initialDelaySeconds: 10
+            initialDelaySeconds: 20
             periodSeconds: 10
-            failureThreshold: 30
+            failureThreshold: 60
           livenessProbe:
             httpGet:
               path: /health
               port: 8088
-            initialDelaySeconds: 60
+            initialDelaySeconds: 120
             periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /health
               port: 8088
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 10
